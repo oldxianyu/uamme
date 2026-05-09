@@ -1,8 +1,8 @@
 # 优安米 (UAMME)
 
-企业微信 Webhook 推送机器人配置平台，支持多用户、模板管理、内容源接入、定时推送。
+企业微信 Webhook 推送机器人配置平台，支持多用户、模板管理、内容源接入、定时推送、AI智能优化。
 
-🌐 **在线体验：** [uamme.171801508.workers.dev](https://uamme.171801508.workers.dev)
+🌐 **在线体验：** [uamme.com](https://uamme.com)
 
 ## 功能特性
 
@@ -15,21 +15,38 @@
 - 纯文本 / Markdown 格式
 - 支持 `{{title}}` `{{body}}` 变量占位
 - 模板预览（变量替换）
+- **AI智能优化**：一键优化模板内容，提升可读性和专业度
 
 ### 📰 内容源管理
 - RSS 订阅
 - 网页抓取
 - 关键词监控
 - 自动定时抓取
+- **AI智能优化**：自动优化抓取的内容
 
 ### ✏️ 自定义内容
 - 手动编写推送内容
 - 关联模板快速填充
+- **AI智能优化**：一键优化内容质量和标题
 
 ### 🚀 推送引擎
 - 选择 Webhook + 模板 + 内容，一键推送
 - 推送日志记录（成功/失败/响应详情）
 - Dashboard 数据总览
+
+### ⏰ 定时推送
+- 支持间隔推送（如每30分钟）
+- 支持 Cron 表达式（如 `0 9 * * *` 每天9点）
+- 任务启停控制
+- 推送历史记录
+- **在创建模板时可直接配置定时推送**
+
+### 🤖 AI 智能优化
+- 可配置自定义 AI API（OpenAI兼容接口）
+- 支持任意模型（如 GPT-4、Claude、本地模型等）
+- 一键优化内容质量、可读性、专业度
+- 自动生成优化标题
+- 管理员可在设置中配置 API 地址、密钥、模型
 
 ### 👥 多用户系统
 - 管理员可创建/删除子账户
@@ -45,6 +62,7 @@
 | 数据库 | Cloudflare D1 (SQLite) |
 | 前端 | 原生 HTML/CSS/JS + Material Design 3 |
 | 认证 | PBKDF2-SHA256 + Token Session |
+| AI | OpenAI 兼容接口（可配置） |
 | 部署 | GitHub Actions 自动构建部署 |
 
 ## 项目结构
@@ -63,6 +81,8 @@ uamme/
 │       ├── custom.ts          # 自定义内容 CRUD
 │       ├── push.ts            # 推送执行
 │       ├── dashboard.ts       # 仪表盘数据
+│       ├── ai.ts              # AI 优化接口
+│       ├── schedule.ts        # 定时推送任务管理
 │       └── api.ts             # API 汇总路由
 ├── public/
 │   ├── index.html             # 首页
@@ -74,7 +94,9 @@ uamme/
 │       └── app.js             # 前端逻辑
 ├── migrations/
 │   ├── 0001_init.sql          # 建表
-│   └── 0002_seed.sql          # 默认管理员
+│   ├── 0002_seed.sql          # 默认管理员
+│   ├── 0003_ai_settings.sql   # AI 设置表
+│   └── 0004_scheduled_tasks.sql # 定时任务表
 ├── scripts/
 │   ├── build-embedded.js      # 静态资源嵌入构建
 │   └── embed-and-deploy.sh    # 构建+部署脚本
@@ -94,6 +116,8 @@ npm install
 # 初始化本地数据库
 npx wrangler d1 execute uamme-db --local --file=migrations/0001_init.sql
 npx wrangler d1 execute uamme-db --local --file=migrations/0002_seed.sql
+npx wrangler d1 execute uamme-db --local --file=migrations/0003_ai_settings.sql
+npx wrangler d1 execute uamme-db --local --file=migrations/0004_scheduled_tasks.sql
 
 # 启动开发服务器
 npx wrangler dev --port 3000
@@ -127,6 +151,45 @@ npx wrangler dev --port 3000
 - **登录频率限制**：5 次/15 分钟/IP
 - **SSRF 防护**：Webhook 仅允许 `qyapi.weixin.qq.com`
 - **内容隔离**：所有数据查询强制 `user_id` 过滤
+
+## API 接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/auth/login` | 用户登录 |
+| POST | `/api/auth/change-password` | 修改密码 |
+| GET | `/api/auth/users` | 获取用户列表（管理员） |
+| POST | `/api/auth/users` | 创建用户（管理员） |
+| DELETE | `/api/auth/users/:id` | 删除用户（管理员） |
+| GET | `/api/webhooks` | 获取 Webhook 列表 |
+| POST | `/api/webhooks` | 创建 Webhook |
+| PUT | `/api/webhooks/:id` | 更新 Webhook |
+| DELETE | `/api/webhooks/:id` | 删除 Webhook |
+| POST | `/api/webhooks/:id/test` | 测试 Webhook |
+| GET | `/api/templates` | 获取模板列表 |
+| POST | `/api/templates` | 创建模板 |
+| PUT | `/api/templates/:id` | 更新模板 |
+| DELETE | `/api/templates/:id` | 删除模板 |
+| GET | `/api/content-sources` | 获取内容源列表 |
+| POST | `/api/content-sources` | 创建内容源 |
+| PUT | `/api/content-sources/:id` | 更新内容源 |
+| DELETE | `/api/content-sources/:id` | 删除内容源 |
+| GET | `/api/custom-contents` | 获取自定义内容列表 |
+| POST | `/api/custom-contents` | 创建自定义内容 |
+| PUT | `/api/custom-contents/:id` | 更新自定义内容 |
+| DELETE | `/api/custom-contents/:id` | 删除自定义内容 |
+| POST | `/api/push/send` | 发送推送 |
+| GET | `/api/push/logs` | 获取推送日志 |
+| GET | `/api/dashboard/stats` | 获取仪表盘统计 |
+| GET | `/api/ai/settings` | 获取 AI 设置（管理员） |
+| PUT | `/api/ai/settings` | 更新 AI 设置（管理员） |
+| POST | `/api/ai/optimize` | AI 优化内容 |
+| GET | `/api/schedule/tasks` | 获取定时任务列表 |
+| POST | `/api/schedule/tasks` | 创建定时任务 |
+| PUT | `/api/schedule/tasks/:id` | 更新定时任务 |
+| DELETE | `/api/schedule/tasks/:id` | 删除定时任务 |
+| POST | `/api/schedule/tasks/:id/run-now` | 立即执行定时任务 |
+| GET | `/api/schedule/tasks/:id/runs` | 获取任务执行历史 |
 
 ## License
 
