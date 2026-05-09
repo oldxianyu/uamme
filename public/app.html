@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>控制台 - 优安米</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>📡 优安米</h2>
+        <p>Webhook 推送配置</p>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="sidebar-item active" data-page="dashboard">
+          <span class="icon">📊</span> 控制台
+        </a>
+        <a class="sidebar-item" data-page="webhooks">
+          <span class="icon">🔗</span> Webhook 配置
+        </a>
+        <a class="sidebar-item" data-page="templates">
+          <span class="icon">📝</span> 推送模板
+        </a>
+        <a class="sidebar-item" data-page="sources">
+          <span class="icon">📰</span> 内容源管理
+        </a>
+        <a class="sidebar-item" data-page="custom">
+          <span class="icon">✏️</span> 自定义内容
+        </a>
+        <a class="sidebar-item" data-page="push">
+          <span class="icon">🚀</span> 推送记录
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="flex-between">
+          <span id="user-display" style="font-size:14px;color:var(--md-on-surface-variant);">--</span>
+          <button class="md-btn md-btn-text md-btn-sm" onclick="handleLogout()">退出</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+      <div class="topbar">
+        <h1 class="topbar-title" id="page-title">控制台</h1>
+        <div id="topbar-actions"></div>
+      </div>
+
+      <div class="page-content">
+        <!-- Dashboard -->
+        <div id="page-dashboard" class="page">
+          <div class="stats-grid" id="stats-grid"></div>
+          <div class="md-card md-card-outlined mb-24">
+            <h3 class="md-title-medium mb-16">最近推送</h3>
+            <div id="recent-pushes"></div>
+          </div>
+          <div class="md-card md-card-outlined">
+            <h3 class="md-title-medium mb-16">最近失败</h3>
+            <div id="recent-failures"></div>
+          </div>
+        </div>
+
+        <!-- Webhooks -->
+        <div id="page-webhooks" class="page hidden">
+          <div class="flex-between mb-24">
+            <h2 class="md-title-large">Webhook 列表</h2>
+            <button class="md-btn md-btn-filled" onclick="showWebhookForm()">+ 新增 Webhook</button>
+          </div>
+          <div id="webhook-list"></div>
+        </div>
+
+        <!-- Templates -->
+        <div id="page-templates" class="page hidden">
+          <div class="flex-between mb-24">
+            <h2 class="md-title-large">模板列表</h2>
+            <button class="md-btn md-btn-filled" onclick="showTemplateForm()">+ 新增模板</button>
+          </div>
+          <div id="template-list"></div>
+        </div>
+
+        <!-- Content Sources -->
+        <div id="page-sources" class="page hidden">
+          <div class="flex-between mb-24">
+            <h2 class="md-title-large">内容源列表</h2>
+            <button class="md-btn md-btn-filled" onclick="showSourceForm()">+ 新增内容源</button>
+          </div>
+          <div id="source-list"></div>
+        </div>
+
+        <!-- Custom Content -->
+        <div id="page-custom" class="page hidden">
+          <div class="flex-between mb-24">
+            <h2 class="md-title-large">自定义内容</h2>
+            <button class="md-btn md-btn-filled" onclick="showCustomForm()">+ 新增内容</button>
+          </div>
+          <div id="custom-list"></div>
+        </div>
+
+        <!-- Push Logs -->
+        <div id="page-push" class="page hidden">
+          <div class="flex-between mb-24">
+            <h2 class="md-title-large">推送记录</h2>
+            <button class="md-btn md-btn-filled" onclick="showPushForm()">🚀 发送推送</button>
+          </div>
+          <div id="push-logs"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Dialog -->
+  <div class="md-dialog-overlay" id="dialog-overlay">
+    <div class="md-dialog">
+      <div class="md-dialog-title" id="dialog-title"></div>
+      <div class="md-dialog-body" id="dialog-body"></div>
+      <div class="md-dialog-actions" id="dialog-actions"></div>
+    </div>
+  </div>
+
+  <!-- Snackbar -->
+  <div class="md-snackbar" id="snackbar">
+    <span id="snackbar-text"></span>
+    <button class="md-snackbar-action" onclick="hideSnackbar()">关闭</button>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

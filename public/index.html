@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>优安米 - 企业微信 Webhook 推送机器人配置平台</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="landing">
+    <!-- Nav -->
+    <nav class="landing-nav">
+      <div class="landing-logo">📡 优安米</div>
+      <div class="flex gap-16">
+        <a href="#features" class="md-btn md-btn-text">功能</a>
+        <a href="#steps" class="md-btn md-btn-text">使用流程</a>
+        <a href="/login.html" class="md-btn md-btn-filled">登录</a>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="landing-hero">
+      <h1>优安米</h1>
+      <p>企业微信 Webhook 推送机器人配置平台<br>轻松搭建自动化推送流程，让信息触达更高效</p>
+      <a href="/login.html" class="md-btn md-btn-filled" style="height:56px;padding:0 40px;font-size:16px;">
+        开始使用
+      </a>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+      <div class="feature-card">
+        <div class="icon">🔗</div>
+        <h3>Webhook 快速配置</h3>
+        <p>支持新增、编辑、测试企业微信 Webhook 机器人，一键推送测试</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📰</div>
+        <h3>多源内容抓取</h3>
+        <p>支持 RSS 订阅、网页抓取、关键词搜索、指定文章等多种内容来源</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">✏️</div>
+        <h3>自定义模板</h3>
+        <p>创建纯文本、Markdown 或自定义模板，灵活控制推送内容格式</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📝</div>
+        <h3>自由编辑内容</h3>
+        <p>手动编辑标题和正文，保存为可推送内容，随时发送</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🚀</div>
+        <h3>一键推送</h3>
+        <p>选择 Webhook、模板、内容，点击即推送，实时查看推送结果</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📊</div>
+        <h3>推送记录追踪</h3>
+        <p>完整记录每次推送的时间、状态、返回结果，便于排查和审计</p>
+      </div>
+    </section>
+
+    <!-- Steps -->
+    <section class="steps" id="steps">
+      <h2>三步开启自动推送</h2>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <h3>配置 Webhook</h3>
+          <p>在企业微信中创建群机器人，获取 Webhook URL，填入平台即可</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <h3>选择内容来源</h3>
+          <p>配置 RSS 订阅、网页抓取规则，或直接编辑自定义推送内容</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>
+          <h3>推送并查看结果</h3>
+          <p>选择目标 Webhook 和内容，一键推送，实时追踪推送状态</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Developer -->
+    <section class="developer">
+      <img src="https://iv.rfish.de/file/others/EiNyZlgw.png" alt="开发者头像">
+      <h3>xianyu</h3>
+      <p>开发者 &amp; 维护者</p>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+      © 2026 优安米 (uamme.com) · 轻量、易用、可运营的推送配置平台
+    </footer>
+  </div>
+
+  <script>
+    // Redirect to dashboard if logged in
+    if (localStorage.getItem('uamme_token')) {
+      window.location.href = '/app.html';
+    }
+  </script>
+</body>
+</html>
