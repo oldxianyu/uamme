@@ -43,6 +43,10 @@ const API = {
   },
 
   async getMe() { return this.request('/api/auth/me'); },
+  async changePassword(oldPassword, newPassword) { return this.request('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ oldPassword, newPassword }) }); },
+  async getUsers() { return this.request('/api/auth/users'); },
+  async createUser(username, password, display_name) { return this.request('/api/auth/users', { method: 'POST', body: JSON.stringify({ username, password, display_name }) }); },
+  async deleteUser(id) { return this.request(`/api/auth/users/${id}`, { method: 'DELETE' }); },
 
   // Dashboard
   async getStats() { return this.request('/api/dashboard/stats'); },

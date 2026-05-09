@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { dbGet, dbInsert, dbRun } from '../db/index';
+import { dbGet, dbAll, dbInsert, dbRun } from '../db/index';
 import { authMiddleware } from '../middleware/auth';
 
 export const authRoutes = new Hono();
@@ -203,5 +203,68 @@ authRoutes.post('/change-password', authMiddleware, async (c) => {
   const newHash = await hashPassword(newPassword);
   await dbRun(c.env.DB, 'UPDATE users SET password_hash = ?, updated_at = datetime("now") WHERE id = ?', newHash, userId);
 
+  return c.json({ ok: true });
+});
+
+// ===== User management (admin only) =====
+
+// List all users (admin only)
+authRoutes.get('/users', authMiddleware, async (c) => {
+  const userId = c.get('userId');
+  // Check if user is admin (id=1)
+  const admin = await dbGet<{ id: number }>(c.env.DB, 'SELECT id FROM users WHERE id = 1');
+  if (!admin || admin.id !== userId) {
+    return c.json({ error: '无权操作' }, 403);
+  }
+
+  const users = await dbAll<{ id: number; username: string; display_name: string; created_at: string }>(c.env.DB, 'SELECT id, username, display_name, created_at FROM users ORDER BY id');
+  return c.json({ users });
+});
+
+// Create user (admin only)
+authRoutes.post('/users', authMiddleware, async (c) => {
+  const userId = c.get('userId');
+  const admin = await dbGet<{ id: number }>(c.env.DB, 'SELECT id FROM users WHERE id = 1');
+  if (!admin || admin.id !== userId) {
+    return c.json({ error: '无权操作' }, 403);
+  }
+
+  const { username, password, display_name } = await c.req.json();
+  if (!username || !password) {
+    return c.json({ error: '用户名和密码必填' }, 400);
+  }
+  if (username.length < 3 || username.length > 30) {
+    return c.json({ error: '用户名 3-30 位' }, 400);
+  }
+  if (password.length < 6) {
+    return c.json({ error: '密码至少 6 位' }, 400);
+  }
+
+  // Check duplicate
+  const existing = await dbGet<{ id: number }>(c.env.DB, 'SELECT id FROM users WHERE username = ?', username)
+  if (existing) {
+    return c.json({ error: '用户名已存在' }, 400);
+  }
+
+  const hash = await hashPassword(password);
+  await dbInsert(c.env.DB, 'INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)', username, hash, display_name || username);
+
+  return c.json({ ok: true });
+});
+
+// Delete user (admin only, cannot delete self)
+authRoutes.delete('/users/:id', authMiddleware, async (c) => {
+  const userId = c.get('userId');
+  const admin = await dbGet<{ id: number }>(c.env.DB, 'SELECT id FROM users WHERE id = 1');
+  if (!admin || admin.id !== userId) {
+    return c.json({ error: '无权操作' }, 403);
+  }
+
+  const targetId = parseInt(c.req.param('id'));
+  if (targetId === 1) {
+    return c.json({ error: '不能删除管理员' }, 400);
+  }
+
+  await dbRun(c.env.DB, 'DELETE FROM users WHERE id = ?', targetId);
   return c.json({ ok: true });
 });

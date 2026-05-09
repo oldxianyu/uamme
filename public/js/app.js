@@ -24,7 +24,7 @@
     document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
     document.getElementById(`page-${page}`)?.classList.remove('hidden');
 
-    const titles = { dashboard:'控制台', webhooks:'Webhook 配置', templates:'推送模板', sources:'内容源管理', custom:'自定义内容', push:'推送记录' };
+    const titles = { dashboard:'控制台', webhooks:'Webhook 配置', templates:'推送模板', sources:'内容源管理', custom:'自定义内容', push:'推送记录', settings:'账户设置', users:'用户管理' };
     document.getElementById('page-title').textContent = titles[page] || page;
     document.getElementById('topbar-actions').innerHTML = '';
 
@@ -39,6 +39,7 @@
       case 'sources': return loadSources();
       case 'custom': return loadCustom();
       case 'push': return loadPushLogs();
+      case 'users': return loadUsers();
     }
   }
 
@@ -503,12 +504,87 @@
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
-  window.handleLogout = async function() {
-    await API.logout();
-    window.location.href = '/login.html';
+  // ===== Settings & User Management =====
+  window.handleChangePassword = async function() {
+    const oldPwd = document.getElementById('old-password').value;
+    const newPwd = document.getElementById('new-password').value;
+    const confirmPwd = document.getElementById('confirm-password').value;
+
+    if (!oldPwd || !newPwd) { showSnackbar('请填写所有字段'); return; }
+    if (newPwd.length < 6) { showSnackbar('新密码至少 6 位'); return; }
+    if (newPwd !== confirmPwd) { showSnackbar('两次输入的新密码不一致'); return; }
+
+    const data = await API.changePassword(oldPwd, newPwd);
+    if (data.ok) {
+      showSnackbar('✅ 密码已修改');
+      document.getElementById('old-password').value = '';
+      document.getElementById('new-password').value = '';
+      document.getElementById('confirm-password').value = '';
+    } else {
+      showSnackbar('❌ ' + (data.error || '修改失败'));
+    }
+  };
+
+  async function loadUsers() {
+    const data = await API.getUsers();
+    const users = data.users || [];
+    if (!users.length) {
+      document.getElementById('user-list').innerHTML = '<div class="empty-state"><div class="icon">👥</div><h3>暂无用户</h3></div>';
+      return;
+    }
+    document.getElementById('user-list').innerHTML = users.map(u => `
+      <div class="md-card md-card-outlined mb-16">
+        <div class="flex-between">
+          <div>
+            <div class="md-title-medium mb-8">${esc(u.username)}</div>
+            <div class="md-body-small" style="color:var(--md-on-surface-variant)">${esc(u.display_name||'')} · 创建于 ${formatTime(u.created_at)}</div>
+          </div>
+          <div class="flex gap-8">
+            ${u.id !== 1 ? `<button class="md-btn md-btn-text md-btn-sm" style="color:var(--md-error)" onclick="deleteUser(${u.id},'${esc(u.username)}')">删除</button>` : '<span class="md-body-small" style="color:var(--md-outline)">管理员</span>'}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  window.showUserForm = function() {
+    showDialog('新增用户', `
+      <div class="md-field"><label>用户名</label><input id="new-username" placeholder="3-30 位"></div>
+      <div class="md-field"><label>密码</label><input type="password" id="new-user-pwd" placeholder="至少 6 位"></div>
+      <div class="md-field"><label>显示名</label><input id="new-user-display" placeholder="可选"></div>
+    `, [
+      { text:'取消', class:'md-btn md-btn-text', onclick:'hideDialog()' },
+      { text:'创建', class:'md-btn md-btn-filled', onclick:'doCreateUser()' }
+    ]);
+  };
+
+  window.doCreateUser = async function() {
+    const username = document.getElementById('new-username').value.trim();
+    const password = document.getElementById('new-user-pwd').value;
+    const display_name = document.getElementById('new-user-display').value.trim();
+    if (!username || !password) { showSnackbar('用户名和密码必填'); return; }
+    const data = await API.createUser(username, password, display_name);
+    if (data.ok) { hideDialog(); showSnackbar('✅ 用户已创建'); loadUsers(); }
+    else showSnackbar('❌ ' + (data.error || '创建失败'));
+  };
+
+  window.deleteUser = function(id, name) {
+    showDialog('确认删除', `<p>确定要删除用户「${esc(name)}」吗？该用户的所有数据将被删除。</p>`, [
+      { text:'取消', class:'md-btn md-btn-text', onclick:'hideDialog()' },
+      { text:'删除', class:'md-btn md-btn-error', onclick:`doDeleteUser(${id})` }
+    ]);
+  };
+
+  window.doDeleteUser = async function(id) {
+    await API.deleteUser(id); hideDialog(); showSnackbar('已删除'); loadUsers();
   };
 
   // Init
-  loadUser();
+  loadUser().then(() => {
+    // Show admin nav if user is admin (id=1)
+    if (currentUser && currentUser.id === 1) {
+      document.getElementById('nav-users').style.display = '';
+    }
+  });
   navigateTo('dashboard');
 })();
