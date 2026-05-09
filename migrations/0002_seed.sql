@@ -1,13 +1,13 @@
 -- Seed data for UAMME
--- Admin user: xianyu / xianyu
+-- Admin user: admin / admin123
 -- Password hash generated with PBKDF2-SHA256, 100000 iterations
 
 -- Delete existing admin if any
-DELETE FROM users WHERE username = 'xianyu';
+DELETE FROM users WHERE username = 'admin';
 
 -- Insert admin with proper PBKDF2 hash
 INSERT INTO users (id, username, password_hash, display_name) VALUES
-  (1, 'xianyu', 'pbkdf2:100000:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6:78d6845fee2bdf06e200ebd5ce3a93013319d4457200299f0aa78f84eedc410f', '管理员');
+  (1, 'admin', 'pbkdf2:100000:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6:212117de3526e58ba8d73e4406c9a40fc39c36a9eec9d5638628c06cc307c0f9', '管理员');
 
 -- Demo webhook (test only)
 INSERT INTO webhook_configs (user_id, name, webhook_url, description, is_active) VALUES
