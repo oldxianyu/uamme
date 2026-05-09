@@ -6,6 +6,7 @@ import { contentSourceRoutes } from './content';
 import { customContentRoutes } from './custom';
 import { pushRoutes } from './push';
 import { dashboardRoutes } from './dashboard';
+import { aiRoutes } from './ai';
 
 export const apiRoutes = new Hono();
 
@@ -16,3 +17,4 @@ apiRoutes.route('/content-sources', contentSourceRoutes);
 apiRoutes.route('/custom-contents', customContentRoutes);
 apiRoutes.route('/push', pushRoutes);
 apiRoutes.route('/dashboard', dashboardRoutes);
+apiRoutes.route('/ai', aiRoutes);

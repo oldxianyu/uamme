@@ -40,6 +40,9 @@
         <a class="sidebar-item" data-page="users" id="nav-users" style="display:none;">
           <span class="icon">👥</span> 用户管理
         </a>
+        <a class="sidebar-item" data-page="ai-settings" id="nav-ai" style="display:none;">
+          <span class="icon">🤖</span> AI 配置
+        </a>
       </nav>
       <div class="sidebar-footer">
         <div class="flex-between">
@@ -134,6 +137,44 @@
             <button class="md-btn md-btn-filled" onclick="showUserForm()">+ 新增用户</button>
           </div>
           <div id="user-list"></div>
+        </div>
+
+        <!-- AI Settings -->
+        <div id="page-ai-settings" class="page hidden">
+          <h2 class="md-title-large mb-24">AI 优化配置</h2>
+          <div class="md-card md-card-outlined" style="max-width:560px;">
+            <h3 class="md-title-medium mb-16">API 设置</h3>
+            <div class="md-text-field mb-16">
+              <label>API 地址</label>
+              <input type="url" id="ai-api-url" class="md-input" placeholder="https://api.example.com/v1/chat/completions">
+            </div>
+            <div class="md-text-field mb-16">
+              <label>API 密钥</label>
+              <input type="password" id="ai-api-key" class="md-input" placeholder="sk-xxx">
+            </div>
+            <div class="md-text-field mb-16">
+              <label>模型名称</label>
+              <input type="text" id="ai-model" class="md-input" placeholder="gpt-4o-mini">
+            </div>
+            <div class="flex-center gap-8 mb-24">
+              <input type="checkbox" id="ai-enabled">
+              <label for="ai-enabled">启用 AI 优化功能</label>
+            </div>
+            <button class="md-btn md-btn-filled" onclick="saveAISettings()">保存配置</button>
+          </div>
+          <div class="md-card md-card-outlined mt-24" style="max-width:560px;">
+            <h3 class="md-title-medium mb-16">AI 功能说明</h3>
+            <div class="md-body-medium" style="color:var(--md-on-surface-variant);line-height:1.8">
+              <p>启用后，在编辑内容和自定义内容时会出现「AI 优化」按钮：</p>
+              <ul>
+                <li><b>生成标题</b> - 为内容生成简洁标题</li>
+                <li><b>精简摘要</b> - 提取关键信息，控制在 200 字内</li>
+                <li><b>润色改写</b> - 优化表达，使其更专业</li>
+                <li><b>转 Markdown</b> - 转为企微推送格式</li>
+                <li><b>添加 Emoji</b> - 增加生动感</li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         <!-- Push Logs -->

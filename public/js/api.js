@@ -88,4 +88,9 @@ const API = {
   async getPushLogs(limit, offset) { return this.request(`/api/push/logs?limit=${limit || 50}&offset=${offset || 0}`); },
   async getPushLog(id) { return this.request(`/api/push/logs/${id}`); },
   async sendPush(data) { return this.request('/api/push/send', { method: 'POST', body: JSON.stringify(data) }); },
+
+  // AI
+  async getAISettings() { return this.request('/api/ai/settings'); },
+  async updateAISettings(data) { return this.request('/api/ai/settings', { method: 'PUT', body: JSON.stringify(data) }); },
+  async aiOptimize(content, action) { return this.request('/api/ai/optimize', { method: 'POST', body: JSON.stringify({ content, action }) }); },
 };

@@ -24,7 +24,7 @@
     document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
     document.getElementById(`page-${page}`)?.classList.remove('hidden');
 
-    const titles = { dashboard:'控制台', webhooks:'Webhook 配置', templates:'推送模板', sources:'内容源管理', custom:'自定义内容', push:'推送记录', settings:'账户设置', users:'用户管理' };
+    const titles = { dashboard:'控制台', webhooks:'Webhook 配置', templates:'推送模板', sources:'内容源管理', custom:'自定义内容', push:'推送记录', settings:'账户设置', users:'用户管理', 'ai-settings':'AI 配置' };
     document.getElementById('page-title').textContent = titles[page] || page;
     document.getElementById('topbar-actions').innerHTML = '';
 
@@ -40,6 +40,7 @@
       case 'custom': return loadCustom();
       case 'push': return loadPushLogs();
       case 'users': return loadUsers();
+      case 'ai-settings': return loadAISettings();
     }
   }
 
@@ -203,6 +204,11 @@
         <select id="tpl-format"><option value="text" ${tpl.format==='text'?'selected':''}>纯文本</option><option value="markdown" ${tpl.format==='markdown'?'selected':''}>Markdown</option><option value="custom" ${tpl.format==='custom'?'selected':''}>自定义</option></select>
       </div>
       <div class="md-field"><label>内容 <span class="md-body-small">（可用 {{title}} {{body}} 变量）</span></label><textarea id="tpl-content" rows="6">${esc(tpl.content)}</textarea></div>
+      <div class="flex gap-8 mb-16">
+        <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('tpl-content','rewrite','润色改写')">✨ 润色</button>
+        <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('tpl-content','summarize','精简摘要')">📋 精简</button>
+        <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('tpl-content','markdown','转 Markdown')">📝 转 MD</button>
+      </div>
       <div class="md-field"><label>描述</label><input id="tpl-desc" value="${esc(tpl.description)}" placeholder="可选"></div>
     `, [
       { text:'取消', class:'md-btn md-btn-text', onclick:'hideDialog()' },
@@ -362,6 +368,13 @@
     showDialog(id?'编辑内容':'新增内容', `
       <div class="md-field"><label>标题</label><input id="cc-title" value="${esc(content.title)}" placeholder="输入标题"></div>
       <div class="md-field"><label>正文</label><textarea id="cc-body" rows="8">${esc(content.body)}</textarea></div>
+      <div class="flex gap-8 mb-16">
+        <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('cc-body','rewrite','润色改写')">✨ 润色</button>
+        <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('cc-body','summarize','精简摘要')">📋 精简</button>
+        <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('cc-body','markdown','转 Markdown')">📝 转 MD</button>
+        <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('cc-body','emoji','添加 Emoji')">😊 加 Emoji</button>
+        <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiGenTitle('cc-title','cc-body')">🏷️ 生成标题</button>
+      </div>
     `, [
       { text:'取消', class:'md-btn md-btn-text', onclick:'hideDialog()' },
       { text:'保存', class:'md-btn md-btn-filled', onclick:`saveCustom(${id||'null'})` }
@@ -579,11 +592,64 @@
     await API.deleteUser(id); hideDialog(); showSnackbar('已删除'); loadUsers();
   };
 
-  // Init
+  // ===== AI Settings =====
+  async function loadAISettings() {
+    const data = await API.getAISettings();
+    const s = data.settings || {};
+    document.getElementById('ai-api-url').value = s.api_url || '';
+    document.getElementById('ai-api-key').value = s.api_key || '';
+    document.getElementById('ai-model').value = s.model || 'mimo-v2.5';
+    document.getElementById('ai-enabled').checked = !!s.enabled;
+  }
+
+  window.saveAISettings = async function() {
+    const data = {
+      api_url: document.getElementById('ai-api-url').value.trim(),
+      api_key: document.getElementById('ai-api-key').value.trim(),
+      model: document.getElementById('ai-model').value.trim(),
+      enabled: document.getElementById('ai-enabled').checked ? 1 : 0,
+    };
+    if (!data.api_url || !data.api_key || !data.model) {
+      showSnackbar('请填写所有字段'); return;
+    }
+    const result = await API.updateAISettings(data);
+    if (result.ok) showSnackbar('✅ AI 配置已保存');
+    else showSnackbar('❌ ' + (result.error || '保存失败'));
+  };
+
+  // AI optimize helper
+  async function aiOptimize(textareaId, action, label) {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea || !textarea.value.trim()) { showSnackbar('请先输入内容'); return; }
+    showSnackbar('🤖 AI 正在' + label + '...');
+    const result = await API.aiOptimize(textarea.value.trim(), action);
+    if (result.ok) {
+      textarea.value = result.result;
+      showSnackbar('✅ ' + label + '完成');
+    } else {
+      showSnackbar('❌ ' + (result.error || 'AI 请求失败'));
+    }
+  }
+  window.aiOptimize = aiOptimize;
+
+  window.aiGenTitle = async function(titleId, bodyId) {
+    const body = document.getElementById(bodyId)?.value.trim();
+    if (!body) { showSnackbar('请先输入正文内容'); return; }
+    showSnackbar('🤖 AI 正在生成标题...');
+    const result = await API.aiOptimize(body, 'title');
+    if (result.ok) {
+      document.getElementById(titleId).value = result.result;
+      showSnackbar('✅ 标题已生成');
+    } else {
+      showSnackbar('❌ ' + (result.error || 'AI 请求失败'));
+    }
+  };
+
+  // ===== Init =====
   loadUser().then(() => {
-    // Show admin nav if user is admin (id=1)
     if (currentUser && currentUser.id === 1) {
       document.getElementById('nav-users').style.display = '';
+      document.getElementById('nav-ai').style.display = '';
     }
   });
   navigateTo('dashboard');
