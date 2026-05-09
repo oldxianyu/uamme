@@ -46,6 +46,9 @@
         <a class="sidebar-item" data-page="ai-settings" id="nav-ai" style="display:none;">
           <span class="icon">🤖</span> AI 配置
         </a>
+        <a class="sidebar-item" data-page="ai-create" id="nav-ai-create">
+          <span class="icon">✨</span> AI 创建任务
+        </a>
       </nav>
       <div class="sidebar-footer">
         <div class="flex-between">
@@ -196,6 +199,35 @@
             <button class="md-btn md-btn-filled" onclick="showScheduleForm()">+ 新增定时任务</button>
           </div>
           <div id="schedule-list"></div>
+        </div>
+
+        <!-- AI Create Task -->
+        <div id="page-ai-create" class="page hidden">
+          <h2 class="md-title-large mb-24">✨ AI 创建推送任务</h2>
+          <div class="md-card md-card-outlined" style="max-width:720px;">
+            <div id="ai-create-chat" style="min-height:300px;max-height:500px;overflow-y:auto;padding:16px;">
+              <div class="ai-msg assistant" style="margin-bottom:16px;">
+                <div style="background:var(--md-primary-container);color:var(--md-on-primary-container);padding:12px 16px;border-radius:12px;display:inline-block;max-width:100%;">
+                  👋 你好！我是推送任务创建助手。告诉我你想创建什么样的推送任务，例如：
+                  <ul style="margin:8px 0 0 16px;padding:0;">
+                    <li>每隔 2 小时爬取 https://example.com 的最新文章推送到测试群</li>
+                    <li>每天早上 9 点推送济南天气到运维群</li>
+                    <li>每 30 分钟检查服务器状态并推送到告警群</li>
+                    <li>每周一推送一份数据报告到老板群</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div style="padding:12px 16px;border-top:1px solid var(--md-outline-variant);display:flex;gap:8px;align-items:flex-end;">
+              <div class="md-text-field" style="flex:1;margin:0;">
+                <textarea id="ai-create-input" rows="2" class="md-input" placeholder="描述你想要的推送任务..." style="resize:none;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAiCreateMsg()}"></textarea>
+              </div>
+              <button class="md-btn md-btn-filled" onclick="sendAiCreateMsg()" id="ai-create-send" style="min-width:64px;">发送</button>
+            </div>
+          </div>
+          <div class="md-body-small mt-16" style="color:var(--md-on-surface-variant);max-width:720px;">
+            <b>默认模板提示：</b>直接说"推送到 xxx 群"会自动匹配已有 Webhook；说"爬取 xxx"会自动创建内容源；说"定时/循环"会设置推送频率。未指定频率时默认每小时一次。
+          </div>
         </div>
       </div>
     </main>

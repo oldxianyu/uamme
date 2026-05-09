@@ -1010,6 +1010,87 @@
     }
   };
 
+  // ===== AI Create Task =====
+  window.sendAiCreateMsg = async function() {
+    const input = document.getElementById('ai-create-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+
+    const chat = document.getElementById('ai-create-chat');
+    // Add user message
+    chat.innerHTML += `<div class="ai-msg user" style="margin-bottom:16px;text-align:right;">
+      <div style="background:var(--md-primary);color:var(--md-on-primary);padding:12px 16px;border-radius:12px;display:inline-block;max-width:80%;text-align:left;white-space:pre-wrap;">${esc(msg)}</div>
+    </div>`;
+    chat.scrollTop = chat.scrollHeight;
+
+    // Add thinking indicator
+    chat.innerHTML += `<div class="ai-msg assistant" id="ai-create-thinking" style="margin-bottom:16px;">
+      <div style="background:var(--md-primary-container);color:var(--md-on-primary-container);padding:12px 16px;border-radius:12px;display:inline-block;">
+        <span class="loading-dots">🤔 正在分析需求</span>
+      </div>
+    </div>`;
+    chat.scrollTop = chat.scrollHeight;
+
+    document.getElementById('ai-create-send').disabled = true;
+
+    const result = await API.aiCreateTask(msg);
+
+    // Remove thinking indicator
+    const thinking = document.getElementById('ai-create-thinking');
+    if (thinking) thinking.remove();
+
+    if (result.ok && result.config) {
+      const cfg = result.config;
+      // Format task summary
+      let summary = `<b>📋 任务概览</b>\n`;
+      summary += `任务名：${esc(cfg.task_name || cfg.template_name || '未命名')}\n`;
+      if (cfg.webhook_id > 0) summary += `Webhook：使用已有 (ID ${cfg.webhook_id})\n`;
+      else if (cfg.webhook_url) summary += `Webhook：${esc(cfg.webhook_url)}\n`;
+      if (cfg.source_type && cfg.source_type !== 'none') summary += `内容源：${cfg.source_type}` + (cfg.source_url ? ` ${esc(cfg.source_url)}` : '') + '\n';
+      summary += `格式：${cfg.template_format || 'markdown'}\n`;
+      if (cfg.schedule_type === 'interval') summary += `频率：每 ${cfg.interval_minutes || 60} 分钟\n`;
+      else if (cfg.cron_expr) summary += `Cron：${cfg.cron_expr}\n`;
+
+      chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
+        <div style="background:var(--md-primary-container);color:var(--md-on-primary-container);padding:12px 16px;border-radius:12px;display:inline-block;max-width:100%;white-space:pre-wrap;">${summary}</div>
+      </div>`;
+
+      chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
+        <div style="display:flex;gap:8px;">
+          <button class="md-btn md-btn-filled md-btn-sm" onclick='confirmAiTask(${JSON.stringify(cfg).replace(/'/g, "&#39;")})'>✅ 确认创建</button>
+          <button class="md-btn md-btn-outlined md-btn-sm" onclick="document.getElementById('ai-create-input').focus()">✏️ 重新描述</button>
+        </div>
+      </div>`;
+    } else {
+      chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
+        <div style="background:var(--md-error-container);color:var(--md-on-error-container);padding:12px 16px;border-radius:12px;display:inline-block;">
+          ❌ ${esc(result.error || 'AI 解析失败，请重新描述')}
+        </div>
+      </div>`;
+    }
+
+    chat.scrollTop = chat.scrollHeight;
+    document.getElementById('ai-create-send').disabled = false;
+  };
+
+  window.confirmAiTask = async function(cfg) {
+    showSnackbar('⏳ 正在创建任务...');
+    const result = await API.aiConfirmTask(cfg);
+    if (result.ok) {
+      showSnackbar('✅ ' + (result.message || '任务已创建'));
+      const chat = document.getElementById('ai-create-chat');
+      chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
+        <div style="background:var(--md-primary-container);color:var(--md-on-primary-container);padding:12px 16px;border-radius:12px;display:inline-block;">
+          ✅ 任务创建成功！ID: ${result.task_id}<br>可在「⏰ 定时推送」页面查看和管理。
+        </div>
+      </div>`;
+      chat.scrollTop = chat.scrollHeight;
+    } else {
+      showSnackbar('❌ ' + (result.error || '创建失败'));
+    }
+  };
+
   // ===== Init =====
   loadUser().then(() => {
     if (currentUser && currentUser.id === 1) {
