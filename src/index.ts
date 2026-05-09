@@ -20,44 +20,12 @@ app.use('/api/*', cors({
 // API routes
 app.route('/api', apiRoutes);
 
-// Static files
+// Static files - use ASSETS binding in production
 app.get('*', async (c) => {
-  // Production: use ASSETS binding
   if (c.env.ASSETS) {
     return c.env.ASSETS.fetch(c.req.raw);
   }
-  // Local dev: serve from public/ via node:fs
-  try {
-    const url = new URL(c.req.url);
-    let path = url.pathname;
-    if (path === '/') path = '/index.html';
-    if (path.endsWith('/')) path += 'index.html';
-
-    const fs = await import('node:fs/promises');
-    const { join } = await import('node:path');
-    const filePath = join(process.cwd(), 'public', path);
-
-    const content = await fs.readFile(filePath);
-    const ext = path.split('.').pop() || 'html';
-    const mimeTypes: Record<string, string> = {
-      html: 'text/html; charset=utf-8',
-      css: 'text/css; charset=utf-8',
-      js: 'application/javascript; charset=utf-8',
-      json: 'application/json; charset=utf-8',
-      png: 'image/png',
-      jpg: 'image/jpeg',
-      gif: 'image/gif',
-      svg: 'image/svg+xml',
-      ico: 'image/x-icon',
-      woff: 'font/woff',
-      woff2: 'font/woff2',
-    };
-    return new Response(content, {
-      headers: { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' },
-    });
-  } catch {
-    return c.text('Not Found', 404);
-  }
+  return c.text('Static file serving not available in local dev', 404);
 });
 
 // Error handler

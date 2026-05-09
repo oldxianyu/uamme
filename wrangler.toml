@@ -3,8 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Enable workers.dev
+workers_dev = true
+
 # D1 Database
 [[d1_databases]]
 binding = "DB"
 database_name = "uamme-db"
-database_id = "placeholder-will-be-replaced"
+database_id = "c973b0d9-6058-4b8e-9d7a-acaa4b377b86"
