@@ -35,6 +35,7 @@
 - Dashboard 数据总览
 
 ### ⏰ 定时推送
+- 基于 **Cloudflare Cron Triggers**，无需访问网站即可自动执行
 - 支持间隔推送（如每30分钟）
 - 支持 Cron 表达式（如 `0 9 * * *` 每天9点）
 - 任务启停控制
@@ -63,6 +64,7 @@
 | 前端 | 原生 HTML/CSS/JS + Material Design 3 |
 | 认证 | PBKDF2-SHA256 + Token Session |
 | AI | OpenAI 兼容接口（可配置） |
+| 定时 | Cloudflare Cron Triggers（每分钟轮询） |
 | 部署 | GitHub Actions 自动构建部署 |
 
 ## 项目结构
@@ -135,6 +137,23 @@ npx wrangler dev --port 3000
 ```
 
 或通过 GitHub Actions 自动部署：push 到 `master` 分支即可触发。
+
+### 定时推送 Cron Triggers
+
+定时推送使用 Cloudflare Workers 原生 Cron Triggers，每分钟自动触发调度器检查到期任务并执行推送，**无需任何外部访问**。
+
+部署后需手动添加 Cron Trigger（Cloudflare API 不支持通过脚本自动设置）：
+
+```bash
+# 设置 Cron Trigger（每分钟执行）
+curl -X PUT "https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/workers/scripts/uamme/schedules" \
+  -H "X-Auth-Email: {EMAIL}" \
+  -H "X-Auth-Key: {API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '[{"cron": "* * * * *"}]'
+```
+
+> ⚠️ Cron Trigger 最小粒度为1分钟。如需更精确的调度，建议配合 Cloudflare Queues。
 
 ## 环境变量
 
