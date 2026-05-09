@@ -2,6 +2,7 @@
 import { Hono } from 'hono';
 import { dbGet, dbAll, dbInsert } from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { fetchBySourceType } from './content-fetch.js';
 
 const schedule = new Hono();
 schedule.use('*', authMiddleware);
@@ -11,8 +12,8 @@ function getDB(c: any): D1Database {
   return c.env.DB;
 }
 
-// Simple cron parser for basic expressions
-function parseCron(expr: string): ((date: Date) => boolean) | null {
+// Simple cron parser for basic expressions (supports timezone)
+function parseCron(expr: string, tz: string = 'Asia/Shanghai'): ((date: Date) => boolean) | null {
   const parts = expr.trim().split(/\s+/);
   if (parts.length < 5) return null;
   const [min, hour, dom, month, dow] = parts;
@@ -28,12 +29,14 @@ function parseCron(expr: string): ((date: Date) => boolean) | null {
   }
 
   return (date: Date) => {
+    // Convert UTC to target timezone
+    const local = new Date(date.toLocaleString('en-US', { timeZone: tz }));
     return (
-      matchField(min, date.getUTCMinutes()) &&
-      matchField(hour, date.getUTCHours()) &&
-      matchField(dom, date.getUTCDate()) &&
-      matchField(month, date.getUTCMonth() + 1) &&
-      matchField(dow, date.getUTCDay())
+      matchField(min, local.getMinutes()) &&
+      matchField(hour, local.getHours()) &&
+      matchField(dom, local.getDate()) &&
+      matchField(month, local.getMonth() + 1) &&
+      matchField(dow, local.getDay())
     );
   };
 }
@@ -192,7 +195,7 @@ schedule.post('/tasks/:id/run-now', async (c) => {
      FROM scheduled_tasks s
      LEFT JOIN webhook_configs w ON s.webhook_id = w.id
      WHERE s.id = ? AND s.user_id = ?`,
-    [taskId, userId]
+    taskId, userId
   ) as any;
   if (!task) return c.json({ error: '任务不存在' }, 404);
   if (!task.webhook_url) return c.json({ error: 'Webhook 未配置' }, 400);
@@ -203,10 +206,18 @@ schedule.post('/tasks/:id/run-now', async (c) => {
   let content = tpl.content;
   if (task.source_id) {
     const source = await dbGet(db, 'SELECT * FROM content_sources WHERE id = ? AND user_id = ?', task.source_id, userId) as any;
-    if (source?.url) {
+    if (source) {
       try {
-        const resp = await fetch(source.url, { signal: AbortSignal.timeout(10000) });
-        if (resp.ok) content = await resp.text();
+        if (source.source_type === 'server-monitor' || source.source_type === 'news-briefing') {
+          const fetched = await fetchBySourceType(source.source_type, source.config);
+          content = content.replace(/\{\{content\}\}/g, fetched);
+        } else if (source.source_url) {
+          const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
+          if (resp.ok) {
+            const fetched = await resp.text();
+            content = content.replace(/\{\{content\}\}/g, fetched);
+          }
+        }
       } catch {}
     }
   }
@@ -270,10 +281,18 @@ export async function runScheduler(db: D1Database): Promise<void> {
     let content = tpl.content;
     if (task.source_id) {
       const source = await dbGet(db, 'SELECT * FROM content_sources WHERE id = ?', task.source_id) as any;
-      if (source?.url) {
+      if (source) {
         try {
-          const resp = await fetch(source.url, { signal: AbortSignal.timeout(10000) });
-          if (resp.ok) content = await resp.text();
+          if (source.source_type === 'server-monitor' || source.source_type === 'news-briefing') {
+            const fetched = await fetchBySourceType(source.source_type, source.config);
+            content = content.replace(/\{\{content\}\}/g, fetched);
+          } else if (source.source_url) {
+            const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
+            if (resp.ok) {
+              const fetched = await resp.text();
+              content = content.replace(/\{\{content\}\}/g, fetched);
+            }
+          }
         } catch {}
       }
     }

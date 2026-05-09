@@ -331,7 +331,7 @@
       document.getElementById('source-list').innerHTML = '<div class="empty-state"><div class="icon">📰</div><h3>暂无内容源</h3><p>添加 RSS、网页、关键词等内容来源</p></div>';
       return;
     }
-    const typeLabels = { rss:'RSS', website:'网页', keyword:'关键词', article:'文章' };
+    const typeLabels = { rss:'RSS', website:'网页', keyword:'关键词', article:'文章', 'server-monitor':'服务器监控', 'news-briefing':'每日早报' };
     document.getElementById('source-list').innerHTML = sources.map(s => `
       <div class="md-card md-card-outlined mb-16">
         <div class="flex-between">
@@ -364,10 +364,13 @@
           <option value="website" ${src.source_type==='website'?'selected':''}>网页抓取</option>
           <option value="keyword" ${src.source_type==='keyword'?'selected':''}>关键词搜索</option>
           <option value="article" ${src.source_type==='article'?'selected':''}>指定文章</option>
+          <option value="server-monitor" ${src.source_type==='server-monitor'?'selected':''}>🖥️ 服务器监控</option>
+          <option value="news-briefing" ${src.source_type==='news-briefing'?'selected':''}>📰 每日早报</option>
         </select>
       </div>
       <div class="md-field" id="src-url-field"><label>URL</label><input id="src-url" value="${esc(src.source_url)}" placeholder="https://..."></div>
       <div class="md-field hidden" id="src-keyword-field"><label>关键词</label><input id="src-keyword" value="${esc(src.keyword)}" placeholder="输入搜索关键词"></div>
+      <div class="md-field hidden" id="src-config-field"><label>配置 JSON</label><textarea id="src-config" rows="6" style="font-family:monospace;font-size:12px">${esc(src.config || '{}')}</textarea></div>
       <div class="md-field"><label>抓取间隔（秒）</label><input type="number" id="src-interval" value="${src.fetch_interval}"></div>
     `, [
       { text:'取消', class:'md-btn md-btn-text', onclick:'hideDialog()' },
@@ -378,8 +381,15 @@
 
   window.toggleSourceFields = function() {
     const type = document.getElementById('src-type').value;
-    document.getElementById('src-url-field').classList.toggle('hidden', type === 'keyword');
+    document.getElementById('src-url-field').classList.toggle('hidden', type === 'keyword' || type === 'server-monitor' || type === 'news-briefing');
     document.getElementById('src-keyword-field').classList.toggle('hidden', type !== 'keyword');
+    document.getElementById('src-config-field').classList.toggle('hidden', type !== 'server-monitor' && type !== 'news-briefing');
+    // Auto-fill config JSON for known types
+    if (type === 'server-monitor') {
+      document.getElementById('src-config').value = src.config || JSON.stringify({base_url:'https://066609.xyz', ignore_nodes:'美国灵车3.8'}, null, 2);
+    } else if (type === 'news-briefing') {
+      document.getElementById('src-config').value = src.config || JSON.stringify({weather_api_key:'', city_adcode:'370100', news_query:'(零售药店 OR 连锁药店 OR 药店) (监管 OR 处罚 OR 约谈 OR 医保 OR 转型 OR 健康驿站)', news_days:'3', news_limit:'8'}, null, 2);
+    }
   };
 
   window.saveSource = async function(id) {
@@ -389,6 +399,7 @@
       source_url: document.getElementById('src-url')?.value.trim() || '',
       keyword: document.getElementById('src-keyword')?.value.trim() || '',
       fetch_interval: parseInt(document.getElementById('src-interval').value) || 3600,
+      config: document.getElementById('src-config')?.value.trim() || '{}',
       is_active: 1
     };
     if (!data.name) { showSnackbar('请填写名称'); return; }

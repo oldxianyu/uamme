@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { dbGet, dbAll, dbRun, dbInsert, validateId, validateString, validateUrl } from '../db/index';
 import { authMiddleware } from '../middleware/auth';
+import { fetchBySourceType } from './content-fetch';
 
 export const contentSourceRoutes = new Hono();
 contentSourceRoutes.use('*', authMiddleware);
@@ -48,7 +49,7 @@ contentSourceRoutes.post('/', async (c) => {
     return c.json({ error: '名称和类型不能为空' }, 400);
   }
 
-  const validTypes = ['rss', 'website', 'keyword', 'article'];
+  const validTypes = ['rss', 'website', 'keyword', 'article', 'server-monitor', 'news-briefing'];
   if (!validTypes.includes(source_type)) {
     return c.json({ error: '无效的内容类型' }, 400);
   }
@@ -160,6 +161,12 @@ contentSourceRoutes.post('/:id/test', async (c) => {
   }
 
   try {
+    // Special types with custom fetch handlers
+    if (source.source_type === 'server-monitor' || source.source_type === 'news-briefing') {
+      const content = await fetchBySourceType(source.source_type, source.config);
+      return c.json({ ok: true, content: content.slice(0, 4000) });
+    }
+
     let content = '';
 
     if (source.source_type === 'rss' && source.source_url) {
