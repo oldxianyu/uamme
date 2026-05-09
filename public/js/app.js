@@ -940,19 +940,51 @@
   };
 
   // AI optimize helper
+  // 保存AI优化前的原文，用于撤回
+  const aiOriginals = {};
+
   async function aiOptimize(textareaId, action, label) {
     const textarea = document.getElementById(textareaId);
     if (!textarea || !textarea.value.trim()) { showSnackbar('请先输入内容'); return; }
+    // 保存原文
+    aiOriginals[textareaId] = textarea.value;
     showSnackbar('🤖 AI 正在' + label + '...');
     const result = await API.aiOptimize(textarea.value.trim(), action);
     if (result.ok) {
       textarea.value = result.result;
       showSnackbar('✅ ' + label + '完成');
+      // 显示撤回按钮
+      showUndoButton(textareaId, textarea);
     } else {
       showSnackbar('❌ ' + (result.error || 'AI 请求失败'));
     }
   }
   window.aiOptimize = aiOptimize;
+
+  function showUndoButton(textareaId, textarea) {
+    // 移除已有的撤回按钮
+    const existing = document.getElementById('undo-' + textareaId);
+    if (existing) existing.remove();
+    // 在 textarea 后面插入撤回按钮
+    const btn = document.createElement('div');
+    btn.id = 'undo-' + textareaId;
+    btn.className = 'flex gap-8 mb-16';
+    btn.innerHTML = `<button class="md-btn md-btn-outlined md-btn-sm" onclick="undoAiOptimize('${textareaId}')">↩️ 撤回，使用原文</button>`;
+    textarea.parentNode.insertBefore(btn, textarea.nextSibling);
+  }
+
+  window.undoAiOptimize = function(textareaId) {
+    const textarea = document.getElementById(textareaId);
+    const original = aiOriginals[textareaId];
+    if (textarea && original !== undefined) {
+      textarea.value = original;
+      delete aiOriginals[textareaId];
+      // 移除撤回按钮
+      const btn = document.getElementById('undo-' + textareaId);
+      if (btn) btn.remove();
+      showSnackbar('↩️ 已撤回，恢复原文');
+    }
+  };
 
   window.aiGenTitle = async function(titleId, bodyId) {
     const body = document.getElementById(bodyId)?.value.trim();
