@@ -34,6 +34,9 @@
         <a class="sidebar-item" data-page="push">
           <span class="icon">🚀</span> 推送记录
         </a>
+        <a class="sidebar-item" data-page="schedule">
+          <span class="icon">⏰</span> 定时推送
+        </a>
         <a class="sidebar-item" data-page="settings">
           <span class="icon">⚙️</span> 账户设置
         </a>
@@ -184,6 +187,15 @@
             <button class="md-btn md-btn-filled" onclick="showPushForm()">🚀 发送推送</button>
           </div>
           <div id="push-logs"></div>
+        </div>
+
+        <!-- Scheduled Tasks -->
+        <div id="page-schedule" class="page hidden">
+          <div class="flex-between mb-24">
+            <h2 class="md-title-large">定时推送任务</h2>
+            <button class="md-btn md-btn-filled" onclick="showScheduleForm()">+ 新增定时任务</button>
+          </div>
+          <div id="schedule-list"></div>
         </div>
       </div>
     </main>

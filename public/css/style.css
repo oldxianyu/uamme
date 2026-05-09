@@ -154,6 +154,7 @@ body {
   font-size: 11px; font-weight: 500;
 }
 .md-badge-success { background: var(--md-success); }
+.md-badge-error { background: var(--md-error); color: var(--md-on-error); }
 .md-badge-outline { background: transparent; border: 1px solid var(--md-outline); color: var(--md-on-surface-variant); }
 
 /* ===== Switch ===== */

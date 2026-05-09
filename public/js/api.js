@@ -93,4 +93,12 @@ const API = {
   async getAISettings() { return this.request('/api/ai/settings'); },
   async updateAISettings(data) { return this.request('/api/ai/settings', { method: 'PUT', body: JSON.stringify(data) }); },
   async aiOptimize(content, action) { return this.request('/api/ai/optimize', { method: 'POST', body: JSON.stringify({ content, action }) }); },
+
+  // Schedule
+  async getScheduleTasks() { return this.request('/api/schedule/tasks'); },
+  async createScheduleTask(data) { return this.request('/api/schedule/tasks', { method: 'POST', body: JSON.stringify(data) }); },
+  async updateScheduleTask(id, data) { return this.request(`/api/schedule/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
+  async deleteScheduleTask(id) { return this.request(`/api/schedule/tasks/${id}`, { method: 'DELETE' }); },
+  async getScheduleRuns(id) { return this.request(`/api/schedule/tasks/${id}/runs`); },
+  async runScheduleNow(id) { return this.request(`/api/schedule/tasks/${id}/run-now`, { method: 'POST' }); },
 };

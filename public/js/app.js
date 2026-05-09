@@ -24,7 +24,7 @@
     document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
     document.getElementById(`page-${page}`)?.classList.remove('hidden');
 
-    const titles = { dashboard:'控制台', webhooks:'Webhook 配置', templates:'推送模板', sources:'内容源管理', custom:'自定义内容', push:'推送记录', settings:'账户设置', users:'用户管理', 'ai-settings':'AI 配置' };
+    const titles = { dashboard:'控制台', webhooks:'Webhook 配置', templates:'推送模板', sources:'内容源管理', custom:'自定义内容', push:'推送记录', schedule:'定时推送', settings:'账户设置', users:'用户管理', 'ai-settings':'AI 配置' };
     document.getElementById('page-title').textContent = titles[page] || page;
     document.getElementById('topbar-actions').innerHTML = '';
 
@@ -39,6 +39,7 @@
       case 'sources': return loadSources();
       case 'custom': return loadCustom();
       case 'push': return loadPushLogs();
+      case 'schedule': return loadScheduleTasks();
       case 'users': return loadUsers();
       case 'ai-settings': return loadAISettings();
     }
@@ -197,7 +198,23 @@
 
   window.showTemplateForm = async function(id) {
     let tpl = { name:'', format:'text', content:'', description:'' };
-    if (id) { const d = await API.getTemplate(id); tpl = d.template || tpl; }
+    let sched = { enabled: false, interval_minutes: 0, cron_expr: '' };
+    if (id) {
+      const d = await API.getTemplate(id);
+      tpl = d.template || tpl;
+      // 加载关联的定时任务
+      try {
+        const tasks = await API.getScheduleTasks();
+        const task = (tasks.tasks || []).find(t => t.template_id == id);
+        if (task) {
+          sched = {
+            enabled: task.enabled === 1,
+            interval_minutes: task.interval_minutes || 0,
+            cron_expr: task.cron_expr || ''
+          };
+        }
+      } catch {}
+    }
     showDialog(id?'编辑模板':'新增模板', `
       <div class="md-field"><label>名称</label><input id="tpl-name" value="${esc(tpl.name)}" placeholder="如：纯文本模板"></div>
       <div class="md-field"><label>格式</label>
@@ -210,10 +227,36 @@
         <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('tpl-content','markdown','转 Markdown')">📝 转 MD</button>
       </div>
       <div class="md-field"><label>描述</label><input id="tpl-desc" value="${esc(tpl.description)}" placeholder="可选"></div>
+      
+      <div class="md-divider" style="margin:16px 0"></div>
+      <h3 class="md-title-medium mb-8">⏰ 定时推送</h3>
+      <div class="md-field">
+        <label class="md-switch-label">
+          <input type="checkbox" id="tpl-sched-enabled" ${sched.enabled?'checked':''} onchange="toggleTemplateSched()">
+          <span>启用定时推送</span>
+        </label>
+      </div>
+      <div id="tpl-sched-options" style="display:${sched.enabled?'block':'none'}">
+        <div class="md-field"><label>推送间隔（分钟）</label><input id="tpl-sched-interval" type="number" min="1" value="${sched.interval_minutes||''}" placeholder="如：30 表示每30分钟"></div>
+        <div class="md-body-small mb-8" style="color:var(--md-on-surface-variant)">或使用 Cron 表达式（更灵活）：</div>
+        <div class="md-field"><label>Cron 表达式</label><input id="tpl-sched-cron" value="${esc(sched.cron_expr)}" placeholder="如：0 9 * * * 表示每天9点"></div>
+        <div class="md-body-small" style="color:var(--md-on-surface-variant)">
+          <b>常用示例：</b><br>
+          • <code>*/30 * * * *</code> 每30分钟<br>
+          • <code>0 9 * * *</code> 每天9:00<br>
+          • <code>0 9,18 * * 1-5</code> 工作日9点和18点<br>
+          • <code>0 0 1 * *</code> 每月1号0点
+        </div>
+      </div>
     `, [
       { text:'取消', class:'md-btn md-btn-text', onclick:'hideDialog()' },
       { text:'保存', class:'md-btn md-btn-filled', onclick:`saveTemplate(${id||'null'})` }
     ]);
+  };
+
+  window.toggleTemplateSched = function() {
+    const checked = document.getElementById('tpl-sched-enabled').checked;
+    document.getElementById('tpl-sched-options').style.display = checked ? 'block' : 'none';
   };
 
   window.saveTemplate = async function(id) {
@@ -224,8 +267,48 @@
       description: document.getElementById('tpl-desc').value.trim()
     };
     if (!data.name || !data.content) { showSnackbar('请填写名称和内容'); return; }
+    
+    let tplId = id;
     if (id) await API.updateTemplate(id, data);
-    else await API.createTemplate(data);
+    else {
+      const result = await API.createTemplate(data);
+      tplId = result.template?.id;
+    }
+    
+    // 处理定时推送配置
+    const schedEnabled = document.getElementById('tpl-sched-enabled').checked;
+    const interval = parseInt(document.getElementById('tpl-sched-interval').value) || 0;
+    const cronExpr = document.getElementById('tpl-sched-cron').value.trim();
+    
+    if (schedEnabled && tplId) {
+      // 获取第一个webhook作为默认
+      const webhooks = (await API.getWebhooks()).webhooks || [];
+      const webhookId = webhooks[0]?.id;
+      if (!webhookId) {
+        showSnackbar('请先创建一个Webhook才能启用定时推送');
+      } else if (!interval && !cronExpr) {
+        showSnackbar('请配置推送间隔或Cron表达式');
+      } else {
+        // 查找是否已有该模板的定时任务
+        const tasks = (await API.getScheduleTasks()).tasks || [];
+        const existing = tasks.find(t => t.template_id == tplId);
+        
+        const schedData = {
+          template_id: tplId,
+          webhook_id: webhookId,
+          interval_minutes: interval,
+          cron_expr: cronExpr,
+          enabled: 1
+        };
+        
+        if (existing) {
+          await API.updateScheduleTask(existing.id, schedData);
+        } else {
+          await API.createScheduleTask(schedData);
+        }
+      }
+    }
+    
     hideDialog(); showSnackbar(id?'已更新':'已创建'); loadTemplates();
   };
 
@@ -590,6 +673,245 @@
 
   window.doDeleteUser = async function(id) {
     await API.deleteUser(id); hideDialog(); showSnackbar('已删除'); loadUsers();
+  };
+
+  // ===== Scheduled Tasks =====
+  async function loadScheduleTasks() {
+    const data = await API.getScheduleTasks();
+    const tasks = data.tasks || [];
+    if (!tasks.length) {
+      document.getElementById('schedule-list').innerHTML = '<div class="md-body-medium" style="color:var(--md-on-surface-variant);padding:32px 0;text-align:center;">暂无定时任务，点击上方按钮创建</div>';
+      return;
+    }
+
+    // Get webhooks and templates for display
+    const [webhooksData, templatesData] = await Promise.all([API.getWebhooks(), API.getTemplates()]);
+    const webhooks = webhooksData.webhooks || [];
+    const templates = templatesData.templates || [];
+    const webhookMap = Object.fromEntries(webhooks.map(w => [w.id, w]));
+    const templateMap = Object.fromEntries(templates.map(t => [t.id, t]));
+
+    document.getElementById('schedule-list').innerHTML = tasks.map(t => {
+      const tpl = templateMap[t.template_id] || {};
+      const wh = webhookMap[t.webhook_id] || {};
+      const scheduleDesc = t.interval_minutes > 0
+        ? `每 ${t.interval_minutes} 分钟`
+        : t.cron_expr || '未配置';
+      const statusBadge = t.enabled
+        ? '<span class="md-badge md-badge-success">启用</span>'
+        : '<span class="md-badge">停用</span>';
+      const lastRun = t.last_run_at ? new Date(t.last_run_at).toLocaleString('zh-CN') : '从未执行';
+      return `
+        <div class="md-card md-card-outlined mb-16">
+          <div class="flex-between" style="align-items:flex-start;">
+            <div>
+              <div class="flex-center gap-8 mb-8">
+                <h3 class="md-title-medium">${esc(tpl.name || '模板已删除')}</h3>
+                ${statusBadge}
+              </div>
+              <div class="md-body-small mb-8" style="color:var(--md-on-surface-variant);">
+                Webhook: ${esc(wh.name || '未配置')}<br>
+                定时: ${esc(scheduleDesc)}<br>
+                上次执行: ${lastRun}
+              </div>
+            </div>
+            <div class="flex-center gap-8">
+              <button class="md-btn md-btn-text md-btn-sm" onclick="runScheduleNow(${t.id})">▶ 执行</button>
+              <button class="md-btn md-btn-text md-btn-sm" onclick="viewScheduleRuns(${t.id})">📋 记录</button>
+              <button class="md-btn md-btn-text md-btn-sm" onclick="editScheduleTask(${t.id})">✏️</button>
+              <button class="md-btn md-btn-text md-btn-sm md-btn-error" onclick="deleteScheduleTask(${t.id}, '${esc(tpl.name || '任务')}')">🗑</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  window.showScheduleForm = async function() {
+    const [webhooksData, templatesData] = await Promise.all([API.getWebhooks(), API.getTemplates()]);
+    const webhooks = webhooksData.webhooks || [];
+    const templates = templatesData.templates || [];
+
+    showDialog('新增定时推送任务', `
+      <div class="md-field mb-16">
+        <label>推送模板</label>
+        <select id="sched-tpl" class="md-input">
+          ${templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="md-field mb-16">
+        <label>Webhook</label>
+        <select id="sched-wh" class="md-input">
+          ${webhooks.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="md-field mb-16">
+        <label>定时方式</label>
+        <select id="sched-type" class="md-input" onchange="toggleScheduleType()">
+          <option value="interval">固定间隔</option>
+          <option value="cron">Cron 表达式</option>
+        </select>
+      </div>
+      <div id="sched-interval-wrap" class="md-field mb-16">
+        <label>间隔（分钟）</label>
+        <input type="number" id="sched-interval" class="md-input" min="1" value="60" placeholder="60">
+      </div>
+      <div id="sched-cron-wrap" class="md-field mb-16" style="display:none;">
+        <label>Cron 表达式</label>
+        <input type="text" id="sched-cron" class="md-input" placeholder="0 9 * * * (每天9点)">
+        <div class="md-body-small mt-4" style="color:var(--md-on-surface-variant);">格式: 分 时 日 月 周 (例: 0 9 * * * = 每天9:00)</div>
+      </div>
+      <div class="flex-center gap-8 mb-16">
+        <input type="checkbox" id="sched-enabled" checked>
+        <label for="sched-enabled">立即启用</label>
+      </div>
+    `, [
+      { text: '取消', class: 'md-btn md-btn-text', onclick: 'hideDialog()' },
+      { text: '创建', class: 'md-btn md-btn-filled', onclick: 'doCreateScheduleTask()' }
+    ]);
+  };
+
+  window.toggleScheduleType = function() {
+    const type = document.getElementById('sched-type').value;
+    document.getElementById('sched-interval-wrap').style.display = type === 'interval' ? '' : 'none';
+    document.getElementById('sched-cron-wrap').style.display = type === 'cron' ? '' : 'none';
+  };
+
+  window.doCreateScheduleTask = async function() {
+    const template_id = parseInt(document.getElementById('sched-tpl').value);
+    const webhook_id = parseInt(document.getElementById('sched-wh').value);
+    const type = document.getElementById('sched-type').value;
+    const enabled = document.getElementById('sched-enabled').checked;
+
+    const data = { template_id, webhook_id, enabled };
+    if (type === 'interval') {
+      data.interval_minutes = parseInt(document.getElementById('sched-interval').value) || 60;
+    } else {
+      data.cron_expr = document.getElementById('sched-cron').value.trim();
+      if (!data.cron_expr) { showSnackbar('请填写 cron 表达式'); return; }
+    }
+
+    const result = await API.createScheduleTask(data);
+    if (result.ok) { hideDialog(); showSnackbar('✅ 任务已创建'); loadScheduleTasks(); }
+    else showSnackbar('❌ ' + (result.error || '创建失败'));
+  };
+
+  window.editScheduleTask = async function(id) {
+    const data = await API.getScheduleTasks();
+    const task = (data.tasks || []).find(t => t.id === id);
+    if (!task) return;
+
+    const [webhooksData, templatesData] = await Promise.all([API.getWebhooks(), API.getTemplates()]);
+    const webhooks = webhooksData.webhooks || [];
+    const templates = templatesData.templates || [];
+    const isInterval = task.interval_minutes > 0;
+
+    showDialog('编辑定时任务', `
+      <div class="md-field mb-16">
+        <label>推送模板</label>
+        <select id="sched-tpl" class="md-input">
+          ${templates.map(t => `<option value="${t.id}" ${t.id===task.template_id?'selected':''}>${esc(t.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="md-field mb-16">
+        <label>Webhook</label>
+        <select id="sched-wh" class="md-input">
+          ${webhooks.map(w => `<option value="${w.id}" ${w.id===task.webhook_id?'selected':''}>${esc(w.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="md-field mb-16">
+        <label>定时方式</label>
+        <select id="sched-type" class="md-input" onchange="toggleScheduleType()">
+          <option value="interval" ${isInterval?'selected':''}>固定间隔</option>
+          <option value="cron" ${!isInterval?'selected':''}>Cron 表达式</option>
+        </select>
+      </div>
+      <div id="sched-interval-wrap" class="md-field mb-16" style="${isInterval?'':'display:none;'}">
+        <label>间隔（分钟）</label>
+        <input type="number" id="sched-interval" class="md-input" min="1" value="${task.interval_minutes || 60}">
+      </div>
+      <div id="sched-cron-wrap" class="md-field mb-16" style="${isInterval?'display:none;':''}">
+        <label>Cron 表达式</label>
+        <input type="text" id="sched-cron" class="md-input" value="${esc(task.cron_expr || '')}" placeholder="0 9 * * *">
+      </div>
+      <div class="flex-center gap-8 mb-16">
+        <input type="checkbox" id="sched-enabled" ${task.enabled?'checked':''}>
+        <label for="sched-enabled">启用</label>
+      </div>
+    `, [
+      { text: '取消', class: 'md-btn md-btn-text', onclick: 'hideDialog()' },
+      { text: '保存', class: 'md-btn md-btn-filled', onclick: `doUpdateScheduleTask(${id})` }
+    ]);
+  };
+
+  window.doUpdateScheduleTask = async function(id) {
+    const template_id = parseInt(document.getElementById('sched-tpl').value);
+    const webhook_id = parseInt(document.getElementById('sched-wh').value);
+    const type = document.getElementById('sched-type').value;
+    const enabled = document.getElementById('sched-enabled').checked;
+
+    const data = { template_id, webhook_id, enabled };
+    if (type === 'interval') {
+      data.interval_minutes = parseInt(document.getElementById('sched-interval').value) || 60;
+      data.cron_expr = '';
+    } else {
+      data.cron_expr = document.getElementById('sched-cron').value.trim();
+      data.interval_minutes = 0;
+      if (!data.cron_expr) { showSnackbar('请填写 cron 表达式'); return; }
+    }
+
+    const result = await API.updateScheduleTask(id, data);
+    if (result.ok) { hideDialog(); showSnackbar('✅ 已更新'); loadScheduleTasks(); }
+    else showSnackbar('❌ ' + (result.error || '更新失败'));
+  };
+
+  window.deleteScheduleTask = function(id, name) {
+    showDialog('确认删除', `<p>确定要删除定时任务「${esc(name)}」吗？</p>`, [
+      { text: '取消', class: 'md-btn md-btn-text', onclick: 'hideDialog()' },
+      { text: '删除', class: 'md-btn md-btn-error', onclick: `doDeleteScheduleTask(${id})` }
+    ]);
+  };
+
+  window.doDeleteScheduleTask = async function(id) {
+    await API.deleteScheduleTask(id);
+    hideDialog(); showSnackbar('已删除'); loadScheduleTasks();
+  };
+
+  window.runScheduleNow = async function(id) {
+    showSnackbar('⏳ 正在执行...');
+    const result = await API.runScheduleNow(id);
+    if (result.ok) {
+      showSnackbar(`✅ 执行${result.status === 'success' ? '成功' : '失败'}`);
+    } else {
+      showSnackbar('❌ ' + (result.error || '执行失败'));
+    }
+    loadScheduleTasks();
+  };
+
+  window.viewScheduleRuns = async function(id) {
+    const data = await API.getScheduleRuns(id);
+    const runs = data.runs || [];
+    if (!runs.length) {
+      showDialog('执行记录', '<p style="color:var(--md-on-surface-variant);">暂无执行记录</p>', [
+        { text: '关闭', class: 'md-btn md-btn-text', onclick: 'hideDialog()' }
+      ]);
+      return;
+    }
+    const rows = runs.slice(0, 20).map(r => {
+      const badge = r.status === 'success'
+        ? '<span class="md-badge md-badge-success">成功</span>'
+        : '<span class="md-badge md-badge-error">失败</span>';
+      return `<tr><td>${new Date(r.run_at).toLocaleString('zh-CN')}</td><td>${badge}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.result || '-')}</td></tr>`;
+    }).join('');
+    showDialog('执行记录', `
+      <div style="overflow-x:auto;">
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          <thead><tr><th style="text-align:left;padding:4px;">时间</th><th style="text-align:left;padding:4px;">状态</th><th style="text-align:left;padding:4px;">结果</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `, [
+      { text: '关闭', class: 'md-btn md-btn-text', onclick: 'hideDialog()' }
+    ]);
   };
 
   // ===== AI Settings =====
