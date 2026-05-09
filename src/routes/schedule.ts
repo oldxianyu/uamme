@@ -249,6 +249,9 @@ schedule.post('/tasks/:id/run-now', async (c) => {
 
   await dbInsert(db, 'INSERT INTO schedule_runs (task_id, user_id, status, result) VALUES (?, ?, ?, ?)', taskId, userId, status, result);
 
+  // Write to push_logs for dashboard stats
+  await dbInsert(db, 'INSERT INTO push_logs (user_id, webhook_id, template_id, status, response_body) VALUES (?, ?, ?, ?, ?)', userId, task.webhook_id, task.template_id, status, result);
+
   let nextRun: string | null = null;
   if (task.interval_minutes > 0) {
     nextRun = computeNextInterval(new Date().toISOString(), task.interval_minutes);
@@ -323,6 +326,9 @@ export async function runScheduler(db: D1Database): Promise<void> {
     }
 
     await dbInsert(db, 'INSERT INTO schedule_runs (task_id, user_id, status, result) VALUES (?, ?, ?, ?)', task.id, task.user_id, status, result);
+
+    // Write to push_logs for dashboard stats
+    await dbInsert(db, 'INSERT INTO push_logs (user_id, webhook_id, template_id, status, response_body) VALUES (?, ?, ?, ?, ?)', task.user_id, task.webhook_id, task.template_id, status, result);
 
     let nextRun: string | null = null;
     if (task.interval_minutes > 0) {
