@@ -6,6 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 # Enable workers.dev
 workers_dev = true
 
+# Cron Triggers: every minute
+[triggers]
+crons = ["* * * * *"]
+
 # D1 Database
 [[d1_databases]]
 binding = "DB"
