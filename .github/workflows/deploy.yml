@@ -16,9 +16,22 @@ jobs:
 
       - run: npm install
 
-      - name: Deploy
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+      - name: Build with embedded assets
+        run: npx wrangler deploy --dry-run --outdir=.wrangler/deploy
+
+      - name: Embed static assets
+        run: node scripts/build-embedded.js
+
+      - name: Deploy to Cloudflare
+        env:
+          CF_API_EMAIL: ${{ secrets.CF_API_EMAIL }}
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DB_UUID: ${{ secrets.DB_UUID }}
+        run: |
+          curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/uamme" \
+            -H "X-Auth-Email: ${CF_API_EMAIL}" \
+            -H "X-Auth-Key: ${CF_API_KEY}" \
+            -F "metadata={\"main_module\":\"index.js\",\"bindings\":[{\"name\":\"DB\",\"type\":\"d1\",\"id\":\"${DB_UUID}\"}],\"compatibility_date\":\"2024-01-01\",\"compatibility_flags\":[\"nodejs_compat\"]};type=application/json" \
+            -F "index.js=@.wrangler/deploy/embedded.js;type=application/javascript+module" \
+            | python3 -c "import sys,json;r=json.load(sys.stdin);print('✅ Deployed' if r.get('success') else '❌ Failed: '+str(r.get('errors')))"
