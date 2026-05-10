@@ -9,7 +9,7 @@ aiRoutes.get('/settings', authMiddleware, async (c) => {
   const userId = c.get('userId');
   if (userId !== 1) return c.json({ error: '无权操作' }, 403);
 
-  const settings = await dbGet<any>(c.env.DB, 'SELECT id, api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled FROM ai_settings WHERE id = 1');
+  const settings = await dbGet<any>(c.env.DB, 'SELECT id, api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled, browserless_token, browserless_url FROM ai_settings WHERE id = 1');
   return c.json({ settings: settings || { api_url: '', api_key: '', model: 'mimo-v2.5', enabled: 0, agent_url: '', agent_key: '', agent_enabled: 0 } });
 });
 
@@ -18,7 +18,7 @@ aiRoutes.put('/settings', authMiddleware, async (c) => {
   const userId = c.get('userId');
   if (userId !== 1) return c.json({ error: '无权操作' }, 403);
 
-  const { api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled } = await c.req.json();
+  const { api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled, browserless_token, browserless_url } = await c.req.json();
 
   if (!api_url || typeof api_url !== 'string') return c.json({ error: 'API 地址必填' }, 400);
   if (!api_key || typeof api_key !== 'string') return c.json({ error: 'API 密钥必填' }, 400);
@@ -28,11 +28,11 @@ aiRoutes.put('/settings', authMiddleware, async (c) => {
   if (agent_url) { try { new URL(agent_url); } catch { return c.json({ error: 'Agent URL 格式错误' }, 400); } }
 
   await dbRun(c.env.DB, `
-    INSERT INTO ai_settings (id, api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled, updated_at)
-    VALUES (1, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    ON CONFLICT(id) DO UPDATE SET api_url=?, api_key=?, model=?, enabled=?, agent_url=?, agent_key=?, agent_enabled=?, updated_at=datetime('now')
-  `, api_url, api_key, model, enabled ? 1 : 0, agent_url || '', agent_key || '', agent_enabled ? 1 : 0,
-     api_url, api_key, model, enabled ? 1 : 0, agent_url || '', agent_key || '', agent_enabled ? 1 : 0);
+    INSERT INTO ai_settings (id, api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled, browserless_token, browserless_url, updated_at)
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(id) DO UPDATE SET api_url=?, api_key=?, model=?, enabled=?, agent_url=?, agent_key=?, agent_enabled=?, browserless_token=?, browserless_url=?, updated_at=datetime('now')
+  `, api_url, api_key, model, enabled ? 1 : 0, agent_url || '', agent_key || '', agent_enabled ? 1 : 0, browserless_token || '', browserless_url || 'https://chrome.browserless.io/content',
+     api_url, api_key, model, enabled ? 1 : 0, agent_url || '', agent_key || '', agent_enabled ? 1 : 0, browserless_token || '', browserless_url || 'https://chrome.browserless.io/content');
 
   return c.json({ ok: true });
 });
@@ -106,7 +106,7 @@ aiRoutes.post('/optimize', authMiddleware, async (c) => {
 // AI create task from natural language
 aiRoutes.post('/create-task', authMiddleware, async (c) => {
   const userId = c.get('userId');
-  const settings = await dbGet<any>(c.env.DB, 'SELECT api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled FROM ai_settings WHERE id = 1');
+  const settings = await dbGet<any>(c.env.DB, 'SELECT api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled, browserless_token, browserless_url FROM ai_settings WHERE id = 1');
 
   if (!settings || !settings.enabled) {
     return c.json({ error: 'AI 功能未启用，请在 AI 设置中配置' }, 400);

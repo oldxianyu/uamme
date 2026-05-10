@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { dbGet, dbAll, dbRun, dbInsert, validateId, validateString, validateUrl } from '../db/index';
 import { authMiddleware } from '../middleware/auth';
-import { fetchBySourceType } from './content-fetch';
+import { fetchBySourceType, fetchBrowserRender } from './content-fetch';
 
 export const contentSourceRoutes = new Hono();
 contentSourceRoutes.use('*', authMiddleware);
@@ -191,7 +191,21 @@ contentSourceRoutes.post('/:id/test', async (c) => {
       const textOnly = raw.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
       const scriptRatio = (raw.match(/<script/gi) || []).length;
       if (textOnly.length < 100 || scriptRatio > 3) {
-        content = '⚠️ 该网站需要 JavaScript 渲染，简单抓取无法获取真实内容。\n\n可能的替代方案：\n1. 如果网站有 RSS 订阅地址，改用 RSS 类型\n2. 使用「自定义内容」手动粘贴内容\n3. 使用「服务器监控」或「行业早报」等内置类型\n\n原始 HTML 前 500 字符：\n' + raw.slice(0, 500);
+        // Auto-fallback to Browserless
+        const aiSettings = await dbGet<any>(c.env.DB, 'SELECT browserless_token, browserless_url FROM ai_settings WHERE id = 1');
+        if (aiSettings?.browserless_token) {
+          try {
+            content = await fetchBrowserRender({
+              url: source.source_url,
+              api_token: aiSettings.browserless_token,
+              api_url: aiSettings.browserless_url || 'https://chrome.browserless.io/content',
+            });
+          } catch (e: any) {
+            content = '⚠️ 浏览器渲染失败：' + e.message + '\n\n原始 HTML 前 500 字符：\n' + raw.slice(0, 500);
+          }
+        } else {
+          content = '⚠️ 该网站需要 JavaScript 渲染，请在 AI 设置中配置 Browserless API Token 以启用自动渲染。\n\n原始 HTML 前 500 字符：\n' + raw.slice(0, 500);
+        }
       } else {
         content = textOnly.slice(0, 3000);
       }
@@ -205,7 +219,21 @@ contentSourceRoutes.post('/:id/test', async (c) => {
       const raw = await resp.text();
       const textOnly = raw.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
       if (textOnly.length < 100) {
-        content = '⚠️ 该文章页面需要 JavaScript 渲染，无法抓取。建议使用「自定义内容」手动粘贴。';
+        // Auto-fallback to Browserless
+        const aiSettings = await dbGet<any>(c.env.DB, 'SELECT browserless_token, browserless_url FROM ai_settings WHERE id = 1');
+        if (aiSettings?.browserless_token) {
+          try {
+            content = await fetchBrowserRender({
+              url: source.source_url,
+              api_token: aiSettings.browserless_token,
+              api_url: aiSettings.browserless_url || 'https://chrome.browserless.io/content',
+            });
+          } catch (e: any) {
+            content = '⚠️ 浏览器渲染失败：' + e.message;
+          }
+        } else {
+          content = '⚠️ 该文章页面需要 JavaScript 渲染，请在 AI 设置中配置 Browserless API Token。';
+        }
       } else {
         content = textOnly.slice(0, 3000);
       }

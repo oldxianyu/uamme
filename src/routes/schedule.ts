@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { dbGet, dbAll, dbInsert } from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { fetchBySourceType } from './content-fetch.js';
+import { fetchBySourceType, fetchBrowserRender } from './content-fetch.js';
 
 const schedule = new Hono();
 schedule.use('*', authMiddleware);
@@ -217,13 +217,25 @@ schedule.post('/tasks/:id/run-now', async (c) => {
           content = content.replace(/\{\{title\}\}/g, tpl.name || '');
           content = content.replace(/\{\{body\}\}/g, fetched);
         } else if (source.source_url) {
-          const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
-          if (resp.ok) {
-            const fetched = await resp.text();
-            content = content.replace(/\{\{content\}\}/g, fetched);
-            content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
-            content = content.replace(/\{\{title\}\}/g, tpl.name || '');
-            content = content.replace(/\{\{body\}\}/g, fetched);
+          // Auto-fallback to Browserless for website/article
+          const aiBl = await dbGet(db, 'SELECT browserless_token, browserless_url FROM ai_settings WHERE id = 1') as any;
+          if (aiBl?.browserless_token) {
+            try {
+              const fetched = await fetchBrowserRender({ url: source.source_url, api_token: aiBl.browserless_token, api_url: aiBl.browserless_url || 'https://chrome.browserless.io/content' });
+              content = content.replace(/\{\{content\}\}/g, fetched);
+              content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+              content = content.replace(/\{\{title\}\}/g, tpl.name || '');
+              content = content.replace(/\{\{body\}\}/g, fetched);
+            } catch {}
+          } else {
+            const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
+            if (resp.ok) {
+              const fetched = await resp.text();
+              content = content.replace(/\{\{content\}\}/g, fetched);
+              content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+              content = content.replace(/\{\{title\}\}/g, tpl.name || '');
+              content = content.replace(/\{\{body\}\}/g, fetched);
+            }
           }
         }
       } catch {}
@@ -308,13 +320,25 @@ export async function runScheduler(db: D1Database): Promise<void> {
             content = content.replace(/\{\{title\}\}/g, tpl.name || '');
             content = content.replace(/\{\{body\}\}/g, fetched);
           } else if (source.source_url) {
-            const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
-            if (resp.ok) {
-              const fetched = await resp.text();
-              content = content.replace(/\{\{content\}\}/g, fetched);
-              content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
-              content = content.replace(/\{\{title\}\}/g, tpl.name || '');
-              content = content.replace(/\{\{body\}\}/g, fetched);
+            // Auto-fallback to Browserless for website/article
+            const aiBl = await dbGet(db, 'SELECT browserless_token, browserless_url FROM ai_settings WHERE id = 1') as any;
+            if (aiBl?.browserless_token) {
+              try {
+                const fetched = await fetchBrowserRender({ url: source.source_url, api_token: aiBl.browserless_token, api_url: aiBl.browserless_url || 'https://chrome.browserless.io/content' });
+                content = content.replace(/\{\{content\}\}/g, fetched);
+                content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+                content = content.replace(/\{\{title\}\}/g, tpl.name || '');
+                content = content.replace(/\{\{body\}\}/g, fetched);
+              } catch {}
+            } else {
+              const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
+              if (resp.ok) {
+                const fetched = await resp.text();
+                content = content.replace(/\{\{content\}\}/g, fetched);
+                content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+                content = content.replace(/\{\{title\}\}/g, tpl.name || '');
+                content = content.replace(/\{\{body\}\}/g, fetched);
+              }
             }
           }
         } catch {}

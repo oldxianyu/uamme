@@ -949,6 +949,8 @@
     document.getElementById('ai-agent-url').value = s.agent_url || '';
     document.getElementById('ai-agent-key').value = s.agent_key || '';
     document.getElementById('ai-agent-enabled').checked = !!s.agent_enabled;
+    document.getElementById('ai-browserless-token').value = s.browserless_token || '';
+    document.getElementById('ai-browserless-url').value = s.browserless_url || '';
   }
 
   window.saveAISettings = async function() {
@@ -960,6 +962,8 @@
       agent_url: document.getElementById('ai-agent-url').value.trim(),
       agent_key: document.getElementById('ai-agent-key').value.trim(),
       agent_enabled: document.getElementById('ai-agent-enabled').checked ? 1 : 0,
+      browserless_token: document.getElementById('ai-browserless-token').value.trim(),
+      browserless_url: document.getElementById('ai-browserless-url').value.trim() || 'https://chrome.browserless.io/content',
     };
     if (!data.api_url || !data.api_key || !data.model) {
       showSnackbar('请填写所有字段'); return;

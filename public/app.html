@@ -44,7 +44,7 @@
           <span class="icon">👥</span> 用户管理
         </a>
         <a class="sidebar-item" data-page="ai-settings" id="nav-ai" style="display:none;">
-          <span class="icon">🤖</span> AI 配置
+          <span class="icon">⚙️</span> 系统配置
         </a>
         <a class="sidebar-item" data-page="ai-create" id="nav-ai-create">
           <span class="icon">✨</span> AI 创建任务
@@ -147,7 +147,7 @@
 
         <!-- AI Settings -->
         <div id="page-ai-settings" class="page hidden">
-          <h2 class="md-title-large mb-24">AI 优化配置</h2>
+          <h2 class="md-title-large mb-24">系统配置</h2>
           <div class="md-card md-card-outlined" style="max-width:560px;">
             <h3 class="md-title-medium mb-16">API 设置</h3>
             <div class="md-field mb-16">
@@ -187,16 +187,33 @@
             <button class="md-btn md-btn-filled" onclick="saveAISettings()">保存配置</button>
           </div>
           <div class="md-card md-card-outlined mt-24" style="max-width:560px;">
-            <h3 class="md-title-medium mb-16">AI 功能说明</h3>
+            <h3 class="md-title-medium mb-16">🌐 浏览器渲染（可选）</h3>
+            <p class="md-body-small mb-16" style="color:var(--md-on-surface-variant)">
+              配置 Browserless 后，网页抓取和文章类型遇到 JS 渲染页面时会自动使用浏览器渲染。
+            </p>
+            <div class="md-field mb-16">
+              <label class="md-label">Browserless API Token</label>
+              <input type="password" class="md-input" id="ai-browserless-token" placeholder="2x...">
+            </div>
+            <div class="md-field mb-16">
+              <label class="md-label">API 地址（可选）</label>
+              <input type="url" class="md-input" id="ai-browserless-url" placeholder="https://chrome.browserless.io/content">
+            </div>
+            <button class="md-btn md-btn-filled" onclick="saveAISettings()">保存配置</button>
+          </div>
+          <div class="md-card md-card-outlined mt-24" style="max-width:560px;">
+            <h3 class="md-title-medium mb-16">功能说明</h3>
             <div class="md-body-medium" style="color:var(--md-on-surface-variant);line-height:1.8">
-              <p>启用后，在编辑内容和自定义内容时会出现「AI 优化」按钮：</p>
+              <p><b>AI 优化</b> - 启用后，在编辑内容和模板时可使用 AI 一键优化：</p>
               <ul>
-                <li><b>生成标题</b> - 为内容生成简洁标题</li>
-                <li><b>精简摘要</b> - 提取关键信息，控制在 200 字内</li>
-                <li><b>润色改写</b> - 优化表达，使其更专业</li>
-                <li><b>转 Markdown</b> - 转为企微推送格式</li>
-                <li><b>添加 Emoji</b> - 增加生动感</li>
+                <li>生成标题 - 为内容生成简洁标题</li>
+                <li>精简摘要 - 提取关键信息</li>
+                <li>润色改写 - 优化表达</li>
+                <li>转 Markdown - 转为企微推送格式</li>
+                <li>添加 Emoji - 增加生动感</li>
               </ul>
+              <p class="mt-8"><b>Agent 服务</b> - 接入 Hermes 等 Agent 后端，提升 AI 创建任务的对话能力。</p>
+              <p class="mt-8"><b>浏览器渲染</b> - 遇到 JS 渲染页面时自动调用 Browserless 获取真实内容。</p>
             </div>
           </div>
         </div>
