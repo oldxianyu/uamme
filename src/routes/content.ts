@@ -179,16 +179,32 @@ contentSourceRoutes.post('/:id/test', async (c) => {
       content = titles.slice(0, 5).map((t: string) => t.replace(/<\/?title[^>]*>/gi, '')).join('\n');
     } else if (source.source_type === 'website' && source.source_url) {
       const resp = await fetch(source.source_url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; UAMME/1.0)' },
         signal: AbortSignal.timeout(10000),
       });
-      content = (await resp.text()).slice(0, 2000);
+      const raw = await resp.text();
+      // Detect JS-rendered pages (SPA)
+      const textOnly = raw.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      const scriptRatio = (raw.match(/<script/gi) || []).length;
+      if (textOnly.length < 100 || scriptRatio > 3) {
+        content = '⚠️ 该网站需要 JavaScript 渲染，简单抓取无法获取真实内容。\n\n可能的替代方案：\n1. 如果网站有 RSS 订阅地址，改用 RSS 类型\n2. 使用「自定义内容」手动粘贴内容\n3. 使用「服务器监控」或「行业早报」等内置类型\n\n原始 HTML 前 500 字符：\n' + raw.slice(0, 500);
+      } else {
+        content = textOnly.slice(0, 3000);
+      }
     } else if (source.source_type === 'keyword' && source.keyword) {
       content = `关键词"${source.keyword}"的内容抓取功能开发中...`;
     } else if (source.source_type === 'article' && source.source_url) {
       const resp = await fetch(source.source_url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; UAMME/1.0)' },
         signal: AbortSignal.timeout(10000),
       });
-      content = (await resp.text()).slice(0, 2000);
+      const raw = await resp.text();
+      const textOnly = raw.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (textOnly.length < 100) {
+        content = '⚠️ 该文章页面需要 JavaScript 渲染，无法抓取。建议使用「自定义内容」手动粘贴。';
+      } else {
+        content = textOnly.slice(0, 3000);
+      }
     }
 
     return c.json({ ok: true, content: content.slice(0, 2000) });
