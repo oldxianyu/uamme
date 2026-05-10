@@ -216,36 +216,34 @@
       } catch {}
     }
     showDialog(id?'编辑模板':'新增模板', `
-      <div class="md-field"><label>名称</label><input id="tpl-name" value="${esc(tpl.name)}" placeholder="如：纯文本模板"></div>
-      <div class="md-field"><label>格式</label>
-        <select id="tpl-format"><option value="text" ${tpl.format==='text'?'selected':''}>纯文本</option><option value="markdown" ${tpl.format==='markdown'?'selected':''}>Markdown</option><option value="custom" ${tpl.format==='custom'?'selected':''}>自定义</option></select>
+      <div class="tpl-form-grid">
+        <div class="md-field" style="grid-column:1"><label>名称</label><input id="tpl-name" value="${esc(tpl.name)}" placeholder="如：纯文本模板"></div>
+        <div class="md-field" style="grid-column:2"><label>格式</label>
+          <select id="tpl-format"><option value="text" ${tpl.format==='text'?'selected':''}>纯文本</option><option value="markdown" ${tpl.format==='markdown'?'selected':''}>Markdown</option><option value="custom" ${tpl.format==='custom'?'selected':''}>自定义</option></select>
+        </div>
       </div>
-      <div class="md-field"><label>内容 <span class="md-body-small">（可用 {{title}} {{body}} 变量）</span></label><textarea id="tpl-content" rows="6">${esc(tpl.content)}</textarea></div>
-      <div class="flex gap-8 mb-16">
+      <div class="md-field"><label>内容 <span class="md-body-small" style="color:var(--md-on-surface-variant)">（可用 {{title}} {{body}} {{content}} 变量）</span></label><textarea id="tpl-content" rows="4" style="resize:vertical;min-height:80px">${esc(tpl.content)}</textarea></div>
+      <div class="flex gap-8 mb-8">
         <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('tpl-content','rewrite','润色改写')">✨ 润色</button>
         <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('tpl-content','summarize','精简摘要')">📋 精简</button>
         <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('tpl-content','markdown','转 Markdown')">📝 转 MD</button>
       </div>
       <div class="md-field"><label>描述</label><input id="tpl-desc" value="${esc(tpl.description)}" placeholder="可选"></div>
       
-      <div class="md-divider" style="margin:16px 0"></div>
-      <h3 class="md-title-medium mb-8">⏰ 定时推送</h3>
-      <div class="md-field">
-        <label class="md-switch-label">
-          <input type="checkbox" id="tpl-sched-enabled" ${sched.enabled?'checked':''} onchange="toggleTemplateSched()">
-          <span>启用定时推送</span>
+      <div class="tpl-sched-section">
+        <label class="md-switch-label" style="cursor:pointer" onclick="toggleTemplateSched()">
+          <input type="checkbox" id="tpl-sched-enabled" ${sched.enabled?'checked':''} style="display:none">
+          <span class="md-switch-track"><span class="md-switch-thumb"></span></span>
+          <span>⏰ 定时推送</span>
         </label>
-      </div>
-      <div id="tpl-sched-options" style="display:${sched.enabled?'block':'none'}">
-        <div class="md-field"><label>推送间隔（分钟）</label><input id="tpl-sched-interval" type="number" min="1" value="${sched.interval_minutes||''}" placeholder="如：30 表示每30分钟"></div>
-        <div class="md-body-small mb-8" style="color:var(--md-on-surface-variant)">或使用 Cron 表达式（更灵活）：</div>
-        <div class="md-field"><label>Cron 表达式</label><input id="tpl-sched-cron" value="${esc(sched.cron_expr)}" placeholder="如：0 9 * * * 表示每天9点"></div>
-        <div class="md-body-small" style="color:var(--md-on-surface-variant)">
-          <b>常用示例：</b><br>
-          • <code>*/30 * * * *</code> 每30分钟<br>
-          • <code>0 9 * * *</code> 每天9:00<br>
-          • <code>0 9,18 * * 1-5</code> 工作日9点和18点<br>
-          • <code>0 0 1 * *</code> 每月1号0点
+        <div id="tpl-sched-options" class="tpl-sched-body" style="display:${sched.enabled?'block':'none'}">
+          <div class="tpl-form-grid">
+            <div class="md-field" style="grid-column:1"><label>间隔（分钟）</label><input id="tpl-sched-interval" type="number" min="1" value="${sched.interval_minutes||''}" placeholder="如：60"></div>
+            <div class="md-field" style="grid-column:2"><label>Cron 表达式</label><input id="tpl-sched-cron" value="${esc(sched.cron_expr)}" placeholder="如：0 9 * * *"></div>
+          </div>
+          <div class="md-body-small" style="color:var(--md-on-surface-variant);margin-top:4px">
+            <code>*/30 * * *</code> 每30分 · <code>0 9 * * *</code> 每天9点 · <code>0 9,18 * * 1-5</code> 工作日
+          </div>
         </div>
       </div>
     `, [
@@ -255,8 +253,9 @@
   };
 
   window.toggleTemplateSched = function() {
-    const checked = document.getElementById('tpl-sched-enabled').checked;
-    document.getElementById('tpl-sched-options').style.display = checked ? 'block' : 'none';
+    const cb = document.getElementById('tpl-sched-enabled');
+    const opts = document.getElementById('tpl-sched-options');
+    opts.style.display = cb.checked ? 'block' : 'none';
   };
 
   window.saveTemplate = async function(id) {
