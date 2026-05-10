@@ -136,6 +136,48 @@ aiRoutes.post('/create-task', authMiddleware, async (c) => {
 1. 先理解用户需求，如果信息不足就追问（比如：推送到哪里？多久推一次？）
 2. 信息足够后，生成 JSON 配置
 3. 生成配置时，严格输出以下 JSON，不要输出任何其他内容：
+
+## 内容源抓取标准
+
+不同内容源类型的抓取规则：
+- **website**：先用普通 HTTP 抓取，如果检测到 JS 渲染页面（SPA），会自动调用 Browserless 渲染
+- **browser-render**：直接用 Browserless 渲染，返回干净的文本
+- **api-call**：调用 REST API，支持 JSONPath 提取
+- **server-monitor**：获取服务器状态报告
+- **news-briefing**：获取每日新闻早报
+
+### 内容清洗规则（Browserless 渲染时自动执行）
+1. 过滤时间戳（如 13:16:29）
+2. 过滤导航栏（首页、全部平台、关于我们等）
+3. 过滤页脚（版权信息、快速链接等）
+4. 过滤元信息（更新频率、内容类型等）
+5. 优先提取带数字编号的列表项（如热搜榜）
+6. 输出格式：每行一条，编号+内容
+
+### 模板占位符
+- {{title}}：模板名称
+- {{content}}：抓取到的内容（已清洗）
+- {{date}}：当前时间
+- {{body}}：同 {{content}}
+
+### 推送格式建议
+企微 Markdown 消息限制 4096 字符，建议：
+- 标题用 emoji 开头（🔥 📰 📅 等）
+- 内容用编号列表，每条一行
+- 不要超过 50 条
+- 超长内容自动截断
+
+## Webhook：
+${webhookList || '暂无'}
+
+## 内容源：
+${sourceList || '暂无'}
+
+## 模板：
+${templateList || '暂无'}
+
+## 输出格式
+信息足够后，严格输出以下 JSON，不要输出任何其他内容：
 {
   "task_name": "任务名称",
   "webhook_id": 现有webhook的id或0,
@@ -153,15 +195,6 @@ aiRoutes.post('/create-task', authMiddleware, async (c) => {
   "interval_minutes": 间隔分钟数,
   "enabled": 1
 }
-
-## Webhook：
-${webhookList || '暂无'}
-
-## 内容源：
-${sourceList || '暂无'}
-
-## 模板：
-${templateList || '暂无'}
 
 ## 规则：
 - 推送到xxx → 匹配 webhook
