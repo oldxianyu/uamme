@@ -75,7 +75,7 @@ aiRoutes.post('/optimize', authMiddleware, async (c) => {
       body: JSON.stringify({
         model: settings.model,
         messages: [{ role: 'user', content: fullPrompt }],
-        max_tokens: 1024,
+        max_tokens: 4096,
         temperature: 0.7,
       }),
     });
@@ -177,7 +177,7 @@ ${templateList || '暂无'}
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message },
         ],
-        max_tokens: 1024,
+        max_tokens: 8192,
         temperature: 0.3,
       }),
     });
