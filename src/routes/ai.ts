@@ -150,92 +150,97 @@ aiRoutes.post('/create-task', authMiddleware, async (c) => {
     console.error('Failed to load context:', e.message);
   }
 
-  const webhookList = webhooks.map((w: any) => `id=${w.id} name="${w.name}"`).join('\n');
-  const templateList = templates.map((t: any) => `id=${t.id} name="${t.name}" format=${t.format}`).join('\n');
-  const sourceList = sources.map((s: any) => `id=${s.id} name="${s.name}" type=${s.source_type}`).join('\n');
-  const taskList = tasks.map((t: any) => `id=${t.id} name="${t.task_name || '未命名'}" schedule=${t.cron_expr ? t.cron_expr : `每${t.interval_minutes}分钟`} source_id=${t.source_id} webhook_id=${t.webhook_id} template_id=${t.template_id} enabled=${t.enabled ? '启用' : '停用'}`).join('\n');
+  const webhookList = webhooks.map((w: any) => `id=${w.id} name="${w.name}" url=${w.webhook_url}`).join('\n');
+  const templateList = templates.map((t: any) => `id=${t.id} name="${t.name}" format=${t.format} content="${(t.content||'').slice(0,100)}"`).join('\n');
+  const sourceList = sources.map((s: any) => `id=${s.id} name="${s.name}" type=${s.source_type} url=${s.source_url}`).join('\n');
+  const taskList = tasks.map((t: any) => `id=${t.id} name="${t.task_name || '未命名'}" schedule=${t.cron_expr || `每${t.interval_minutes}分钟`} source_id=${t.source_id} webhook_id=${t.webhook_id} template_id=${t.template_id} enabled=${t.enabled ? '启用' : '停用'}`).join('\n');
 
-  const systemPrompt = `你是一个企微推送任务创建助手。用户会用自然语言描述想要创建的推送任务。
+  const systemPrompt = `你是优安米（UAMME）企微推送机器人的 AI 管家。你拥有完整权限来管理用户的推送任务。
 
-你的工作流程：
-1. 先理解用户需求，如果信息不足就追问（比如：推送到哪里？多久推一次？）
-2. 信息足够后，生成 JSON 配置
-3. 生成配置时，严格输出以下 JSON，不要输出任何其他内容：
-
-## 内容源抓取标准
-
-不同内容源类型的抓取规则：
-- **website**：先用普通 HTTP 抓取，如果检测到 JS 渲染页面（SPA），会自动调用 Browserless 渲染
-- **browser-render**：直接用 Browserless 渲染，返回干净的文本
-- **api-call**：调用 REST API，支持 JSONPath 提取
-- **server-monitor**：获取服务器状态报告
-- **news-briefing**：获取每日新闻早报
-
-### 内容清洗规则（Browserless 渲染时自动执行）
-1. 过滤时间戳（如 13:16:29）
-2. 过滤导航栏（首页、全部平台、关于我们等）
-3. 过滤页脚（版权信息、快速链接等）
-4. 过滤元信息（更新频率、内容类型等）
-5. 优先提取带数字编号的列表项（如热搜榜）
-6. 输出格式：每行一条，编号+内容
-
-### 模板占位符
-- {{title}}：模板名称
-- {{content}}：抓取到的内容（已清洗）
-- {{date}}：当前时间
-- {{body}}：同 {{content}}
-
-### 推送格式建议
-企微 Markdown 消息限制 4096 字符，建议：
-- 标题用 emoji 开头（🔥 📰 📅 等）
-- 内容用编号列表，每条一行
-- 不要超过 50 条
-- 超长内容自动截断
+## 核心原则
+- **果断执行**：用户说"创建""帮我做""搞一个"等动词，直接生成配置，不要反问
+- **智能推断**：用户没说的字段，用合理默认值填充（如没说频率→每小时，没说webhook→用第一个可用的）
+- **上下文感知**：用户说"那个任务""改一下""停掉"时，从「已创建的任务」列表匹配
+- **一次到位**：输出完整 JSON 配置，不要分步确认
+- **只有真正缺关键信息时才追问**（如：完全不知道推什么内容时才问）
 
 ## 用户现有资源
 
-### Webhook：
+### Webhook（企微群机器人）：
 ${webhookList || '暂无'}
 
-### 内容源：
+### 内容源（数据来源）：
 ${sourceList || '暂无'}
 
-### 模板：
+### 模板（消息格式）：
 ${templateList || '暂无'}
 
-### 已创建的任务：
+### 已创建的定时任务：
 ${taskList || '暂无'}
 
+## 支持的操作
+
+### 1. 创建任务
+用户说"创建""新建""帮我搞"→ 直接输出 JSON 配置
+
+### 2. 修改任务
+用户说"改一下""调整""改成"→ 找到对应任务，输出修改后的 JSON，字段中包含 action: "update" 和 task_id
+
+### 3. 删除任务
+用户说"删掉""停掉""不要了"→ 输出 {"action": "delete", "task_id": ID}
+
+### 4. 查询/闲聊
+用户问"有什么任务""状态怎么样"→ 直接用自然语言回答，不需要 JSON
+
+## 内容源类型说明
+- **website**：抓网页内容，自动检测 JS 渲染页面并用 Browserless 渲染
+- **browser-render**：用浏览器渲染 SPA 页面
+- **api-call**：调用 REST API，支持 JSONPath 提取
+- **server-monitor**：服务器状态监控报告
+- **news-briefing**：每日新闻早报（天气+NHSA新闻）
+- **none**：不从内容源获取，直接用模板中的固定文字
+
+## 模板占位符
+- {{title}} → 模板名称
+- {{content}} → 抓取到的内容
+- {{date}} → 当前时间
+- {{body}} → 同 {{content}}
+
+## 模板默认格式
+🔥 {{title}}\n\n📅 {{date}}\n\n{{content}}
+
 ## 输出格式
-信息足够后，严格输出以下 JSON，不要输出任何其他内容：
+
+**创建任务时**，严格输出以下 JSON：
 {
   "task_name": "任务名称",
-  "webhook_id": 现有webhook的id或0,
-  "webhook_name": "webhook名称（新建时需要）",
-  "webhook_url": "webhook URL（新建时需要）",
-  "source_id": 现有内容源id或0,
-  "source_type": "rss/website/server-monitor/news-briefing/api-call/browser-render/none",
-  "source_url": "内容源URL",
+  "webhook_id": webhook的id（参考上面列表）,
+  "source_id": 内容源id（参考上面列表，没有则为0）,
+  "source_type": "website/api-call/server-monitor/news-briefing/browser-render/none",
+  "source_url": "内容源URL（新建内容源时需要）",
   "source_config": {},
   "template_name": "模板名称",
   "template_format": "markdown",
-  "template_content": "模板内容（用 {{title}} {{content}} {{date}} 占位符）",
+  "template_content": "模板内容",
   "schedule_type": "cron 或 interval",
   "cron_expr": "cron表达式",
-  "interval_minutes": 间隔分钟数,
+  "interval_minutes": 分钟数,
   "enabled": 1
 }
 
-## 规则：
-- 推送到xxx → 匹配 webhook
-- 爬取xxx → website 类型
-- 定时 → cron/interval
-- 没指定时间 → 默认每小时
-- 只推送固定文字 → source_type=none
-- markdown 格式优先
-- 模板默认格式：emoji+标题\n📅 {{date}}\n\n{{content}}
-- 用户提到"之前的任务""那个推送"时，参考「已创建的任务」列表
-- 修改任务时，基于现有配置进行调整`;
+**修改任务时**：加上 "action": "update", "task_id": ID
+**删除任务时**：{"action": "delete", "task_id": ID}
+
+## 智能推断规则
+- 没指定webhook → 用第一个可用的
+- 没指定频率 → 默认每60分钟
+- 没指定内容源类型 → 根据URL自动判断（有url→website，无url→none）
+- 没指定模板格式 → markdown
+- 没指定模板内容 → 使用默认格式
+- 用户提到"之前的""那个""改一下" → 从已有任务列表匹配并修改
+- "停掉xxx" → action=delete 或 enabled=0
+- "改成每30分钟" → 修改 interval_minutes=30
+- 闲聊/问候/问题 → 直接自然语言回复，不输出 JSON`;
 
   // Build messages array: system + history + current user message
   const msgArr = [{ role: 'system', content: systemPrompt }];
@@ -319,6 +324,42 @@ aiRoutes.post('/confirm-task', authMiddleware, async (c) => {
 
   const { dbAll: dbAllFn, dbInsert } = await import('../db/index');
 
+  // Handle DELETE action
+  if (config.action === 'delete' && config.task_id) {
+    await dbRun(c.env.DB, 'DELETE FROM scheduled_tasks WHERE id = ? AND user_id = ?', config.task_id, userId);
+    return c.json({ ok: true, message: `任务 ID ${config.task_id} 已删除` });
+  }
+
+  // Handle UPDATE action
+  if (config.action === 'update' && config.task_id) {
+    const existing = await (await import('../db/index')).dbGet<any>(c.env.DB, 'SELECT * FROM scheduled_tasks WHERE id = ? AND user_id = ?', config.task_id, userId);
+    if (!existing) return c.json({ error: `任务 ID ${config.task_id} 不存在` }, 404);
+
+    // Update schedule fields
+    const updates: string[] = [];
+    const params: any[] = [];
+    if (config.interval_minutes !== undefined) { updates.push('interval_minutes = ?'); params.push(config.interval_minutes); }
+    if (config.cron_expr !== undefined) { updates.push('cron_expr = ?'); params.push(config.cron_expr); }
+    if (config.enabled !== undefined) { updates.push('enabled = ?'); params.push(config.enabled ? 1 : 0); }
+    if (config.webhook_id !== undefined) { updates.push('webhook_id = ?'); params.push(config.webhook_id); }
+    if (config.source_id !== undefined) { updates.push('source_id = ?'); params.push(config.source_id); }
+    if (config.template_id !== undefined) { updates.push('template_id = ?'); params.push(config.template_id); }
+    if (updates.length > 0) {
+      updates.push('updated_at = datetime("now")');
+      params.push(config.task_id, userId);
+      await dbRun(c.env.DB, `UPDATE scheduled_tasks SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`, ...params);
+    }
+
+    // Update template content if provided
+    if (config.template_content && existing.template_id) {
+      await dbRun(c.env.DB, 'UPDATE message_templates SET content = ?, name = COALESCE(?, name) WHERE id = ?',
+        config.template_content, config.template_name || null, existing.template_id);
+    }
+
+    return c.json({ ok: true, message: `任务 ID ${config.task_id} 已更新` });
+  }
+
+  // Handle CREATE action (default)
   // 1. Create or use webhook
   let webhookId = config.webhook_id || 0;
   if (!webhookId && config.webhook_url) {
