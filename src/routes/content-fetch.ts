@@ -268,6 +268,7 @@ export async function fetchBySourceType(sourceType: string, config: any): Promis
     case 'server-monitor': return fetchServerStatus(cfg);
     case 'news-briefing': return fetchNewsBriefing(cfg);
     case 'api-call': return fetchApiCall(cfg);
+    case 'browser-render': return fetchBrowserRender(cfg);
     default: throw new Error(`未知的内容源类型: ${sourceType}`);
   }
 }
@@ -333,4 +334,56 @@ async function fetchApiCall(config: any): Promise<string> {
 
   // Otherwise stringify
   return JSON.stringify(items, null, 2);
+}
+
+// ===== Browser Render Fetcher (Browserless / compatible) =====
+async function fetchBrowserRender(config: any): Promise<string> {
+  const { url, api_url = 'https://chrome.browserless.io/content', api_token, selector, wait_seconds = 3 } = config;
+  if (!url) throw new Error('缺少目标 URL 配置');
+  if (!api_token) throw new Error('缺少 Browserless API Token');
+
+  // Build request body
+  const body: any = {
+    url,
+    waitForSelector: selector || undefined,
+    waitUntil: 'networkidle0',
+    timeout: 30000,
+  };
+
+  const resp = await fetch(`${api_url}?token=${api_token}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(45000),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '');
+    throw new Error(`浏览器渲染失败: ${resp.status} ${errText.slice(0, 200)}`);
+  }
+
+  const html = await resp.text();
+
+  // Extract readable text from rendered HTML
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (text.length < 50) {
+    throw new Error('渲染后页面内容为空，可能需要配置 CSS 选择器 (selector)');
+  }
+
+  // If a selector is provided, try to extract specific content
+  if (selector) {
+    // Simple regex extraction for common patterns
+    const match = html.match(new RegExp(`<[^>]*class="[^"]*${selector}[^"]*"[^>]*>([\s\S]*?)<\/`, 'i'));
+    if (match) {
+      return match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 4000);
+    }
+  }
+
+  return text.slice(0, 4000);
 }
