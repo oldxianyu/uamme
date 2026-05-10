@@ -70,7 +70,7 @@ aiRoutes.post('/optimize', authMiddleware, async (c) => {
     const useAgent = settings.agent_enabled && settings.agent_url;
     const apiUrl = useAgent ? settings.agent_url : settings.api_url;
     const apiKey = useAgent ? settings.agent_key : settings.api_key;
-    const mdl = useAgent ? 'gpt-5.4' : settings.model;
+    const mdl = useAgent ? 'hermes-agent' : settings.model;
 
     const resp = await fetch(apiUrl, {
       method: 'POST',
@@ -190,7 +190,7 @@ ${templateList || '暂无'}
     const useAgent = settings.agent_enabled && settings.agent_url;
     const apiUrl = useAgent ? settings.agent_url : settings.api_url;
     const apiKey = useAgent ? settings.agent_key : settings.api_key;
-    const mdl = useAgent ? 'gpt-5.4' : settings.model;
+    const mdl = useAgent ? 'hermes-agent' : settings.model;
 
     const resp = await fetch(apiUrl, {
       method: 'POST',
