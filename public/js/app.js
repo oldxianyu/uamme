@@ -1,4 +1,4 @@
-// 优安米 - Main Application Logic
+// Uamme - Main Application Logic
 (function() {
   // Auth check
   if (!localStorage.getItem('uamme_token')) {
@@ -164,7 +164,7 @@
 
   window.testWebhook = async function(id) {
     showSnackbar('正在发送测试...');
-    const data = await API.testWebhook(id, '🏓 优安米测试推送\n\n这是一条测试消息，来自优安米平台。', 'text');
+    const data = await API.testWebhook(id, '🏓 Uamme测试推送\n\n这是一条测试消息，来自Uamme平台。', 'text');
     if (data.ok) showSnackbar('✅ 推送成功');
     else showSnackbar('❌ 推送失败: ' + (data.error || data.response?.errmsg || '未知错误'));
   };

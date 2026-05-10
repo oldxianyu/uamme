@@ -155,7 +155,7 @@ aiRoutes.post('/create-task', authMiddleware, async (c) => {
   const sourceList = sources.map((s: any) => `id=${s.id} name="${s.name}" type=${s.source_type} url=${s.source_url}`).join('\n');
   const taskList = tasks.map((t: any) => `id=${t.id} name="${t.task_name || '未命名'}" schedule=${t.cron_expr || `每${t.interval_minutes}分钟`} source_id=${t.source_id} webhook_id=${t.webhook_id} template_id=${t.template_id} enabled=${t.enabled ? '启用' : '停用'}`).join('\n');
 
-  const systemPrompt = `你是优安米(UAMME)企微推送机器人的 AI 管家。
+  const systemPrompt = `你是 Uamme 企微推送机器人的 AI 管家。
 
 === 核心原则 ===
 1. 果断执行：用户说创建/帮我做/搞一个，直接生成 JSON 配置，不要反问
