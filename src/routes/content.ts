@@ -161,9 +161,9 @@ contentSourceRoutes.post('/:id/test', async (c) => {
   }
 
   try {
+    const cfg = typeof source.config === 'string' ? JSON.parse(source.config || '{}') : (source.config || {});
     // Special types with custom fetch handlers
     if (source.source_type === 'server-monitor' || source.source_type === 'news-briefing' || source.source_type === 'api-call' || source.source_type === 'browser-render') {
-      const cfg = typeof source.config === 'string' ? JSON.parse(source.config || '{}') : (source.config || {});
       if ((source.source_type === 'api-call' || source.source_type === 'browser-render') && source.source_url && !cfg.url) {
         cfg.url = source.source_url;
       }
@@ -199,6 +199,7 @@ contentSourceRoutes.post('/:id/test', async (c) => {
               url: source.source_url,
               api_token: aiSettings.browserless_token,
               api_url: aiSettings.browserless_url || 'https://chrome.browserless.io/content',
+              limit: cfg.limit || 10,
             });
           } catch (e: any) {
             content = '⚠️ 浏览器渲染失败：' + e.message + '\n\n原始 HTML 前 500 字符：\n' + raw.slice(0, 500);
@@ -227,6 +228,7 @@ contentSourceRoutes.post('/:id/test', async (c) => {
               url: source.source_url,
               api_token: aiSettings.browserless_token,
               api_url: aiSettings.browserless_url || 'https://chrome.browserless.io/content',
+              limit: cfg.limit || 10,
             });
           } catch (e: any) {
             content = '⚠️ 浏览器渲染失败：' + e.message;

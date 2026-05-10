@@ -224,7 +224,7 @@ schedule.post('/tasks/:id/run-now', async (c) => {
         const url = urls[i];
         try {
           if (aiBl?.browserless_token) {
-            const f = await fetchBrowserRender({ url, api_token: aiBl.browserless_token, api_url: aiBl.browserless_url || 'https://chrome.browserless.io/content' });
+            const f = await fetchBrowserRender({ url, api_token: aiBl.browserless_token, api_url: aiBl.browserless_url || 'https://chrome.browserless.io/content', limit: cfg.limit || 10 });
             fetchedContents.push(f);
           } else {
             const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
@@ -336,7 +336,7 @@ export async function runScheduler(db: D1Database): Promise<void> {
               const url = urls[i];
               try {
                 if (aiBl?.browserless_token) {
-                  const f = await fetchBrowserRender({ url, api_token: aiBl.browserless_token, api_url: aiBl.browserless_url || 'https://chrome.browserless.io/content' });
+                  const f = await fetchBrowserRender({ url, api_token: aiBl.browserless_token, api_url: aiBl.browserless_url || 'https://chrome.browserless.io/content', limit: cfg.limit || 10 });
                   fetchedContents.push(f);
                 } else {
                   const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });

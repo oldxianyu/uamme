@@ -338,7 +338,7 @@ async function fetchApiCall(config: any): Promise<string> {
 
 // ===== Browser Render Fetcher (Browserless / compatible) =====
 export async function fetchBrowserRender(config: any): Promise<string> {
-  const { url, api_url = 'https://chrome.browserless.io/content', api_token, selector, wait_seconds = 3 } = config;
+  const { url, api_url = 'https://chrome.browserless.io/content', api_token, selector, wait_seconds = 3, limit = 50 } = config;
   if (!url) throw new Error('缺少目标 URL 配置');
   if (!api_token) throw new Error('缺少 Browserless API Token');
 
@@ -401,7 +401,7 @@ export async function fetchBrowserRender(config: any): Promise<string> {
   }
   
   if (blockItems.length >= 5) {
-    return blockItems.slice(0, 50).map((item, i) => `${i + 1}. ${item}`).join('\n');
+    return blockItems.slice(0, limit).map((item, i) => `${i + 1}. ${item}`).join('\n');
   }
   
   // Fallback: try numbered list pattern
@@ -417,7 +417,7 @@ export async function fetchBrowserRender(config: any): Promise<string> {
   }
 
   if (numbered.length >= 5) {
-    return numbered.slice(0, 50).map((item, i) => `${i + 1}. ${item}`).join('\n');
+    return numbered.slice(0, limit).map((item, i) => `${i + 1}. ${item}`).join('\n');
   }
 
   // Fallback: return cleaned text
