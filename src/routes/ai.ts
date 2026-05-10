@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { dbGet, dbRun } from '../db/index';
+import { dbGet, dbRun, dbAll } from '../db/index';
 import { authMiddleware } from '../middleware/auth';
 
 export const aiRoutes = new Hono();
@@ -112,7 +112,7 @@ aiRoutes.post('/create-task', authMiddleware, async (c) => {
     return c.json({ error: 'AI 功能未启用，请在 AI 设置中配置' }, 400);
   }
 
-  const { message, messages: hist } = await c.req.json();
+  const { message } = await c.req.json();
   if (!message || typeof message !== 'string') {
     return c.json({ error: '请输入描述' }, 400);
   }
@@ -120,15 +120,40 @@ aiRoutes.post('/create-task', authMiddleware, async (c) => {
     return c.json({ error: '描述过长，最多 2000 字' }, 400);
   }
 
-  // Get existing webhooks, templates, sources for context
-  const { dbAll: dbAllFn } = await import('../db/index');
-  const webhooks = await dbAllFn(c.env.DB, 'SELECT id, name, webhook_url FROM webhook_configs WHERE user_id = ?', userId);
-  const templates = await dbAllFn(c.env.DB, 'SELECT id, name, format, content FROM message_templates WHERE user_id = ?', userId);
-  const sources = await dbAllFn(c.env.DB, 'SELECT id, name, source_type, source_url FROM content_sources WHERE user_id = ?', userId);
+  // Save user message to database
+  try {
+    await dbRun(c.env.DB, 'INSERT INTO ai_conversations (user_id, role, content) VALUES (?, ?, ?)', userId, 'user', message);
+  } catch (e: any) {
+    console.error('Failed to save conversation:', e.message);
+  }
 
-  const webhookList = webhooks.map((w: any) => `id=${w.id} name="${w.name}" url=${w.webhook_url}`).join('\n');
+  // Load conversation history from database (last 20 messages)
+  let history: {role: string, content: string}[] = [];
+  try {
+    history = await dbAll<{role: string, content: string}>(c.env.DB, 'SELECT role, content FROM ai_conversations WHERE user_id = ? ORDER BY created_at DESC LIMIT 20', userId);
+    history.reverse(); // oldest first
+  } catch (e: any) {
+    console.error('Failed to load conversation history:', e.message);
+  }
+
+  // Get existing webhooks, templates, sources, tasks for context
+  let webhooks: any[] = [];
+  let templates: any[] = [];
+  let sources: any[] = [];
+  let tasks: any[] = [];
+  try {
+    webhooks = await dbAll<any>(c.env.DB, 'SELECT id, name, webhook_url FROM webhook_configs WHERE user_id = ?', userId);
+    templates = await dbAll<any>(c.env.DB, 'SELECT id, name, format, content FROM message_templates WHERE user_id = ?', userId);
+    sources = await dbAll<any>(c.env.DB, 'SELECT id, name, source_type, source_url FROM content_sources WHERE user_id = ?', userId);
+    tasks = await dbAll<any>(c.env.DB, `SELECT st.id, t.name as task_name, st.cron_expr, st.interval_minutes, st.enabled, st.source_id, st.webhook_id, st.template_id FROM scheduled_tasks st LEFT JOIN message_templates t ON st.template_id = t.id WHERE st.user_id = ?`, userId);
+  } catch (e: any) {
+    console.error('Failed to load context:', e.message);
+  }
+
+  const webhookList = webhooks.map((w: any) => `id=${w.id} name="${w.name}"`).join('\n');
   const templateList = templates.map((t: any) => `id=${t.id} name="${t.name}" format=${t.format}`).join('\n');
-  const sourceList = sources.map((s: any) => `id=${s.id} name="${s.name}" type=${s.source_type} url=${s.source_url || ''}`).join('\n');
+  const sourceList = sources.map((s: any) => `id=${s.id} name="${s.name}" type=${s.source_type}`).join('\n');
+  const taskList = tasks.map((t: any) => `id=${t.id} name="${t.task_name || '未命名'}" schedule=${t.cron_expr ? t.cron_expr : `每${t.interval_minutes}分钟`} source_id=${t.source_id} webhook_id=${t.webhook_id} template_id=${t.template_id} enabled=${t.enabled ? '启用' : '停用'}`).join('\n');
 
   const systemPrompt = `你是一个企微推送任务创建助手。用户会用自然语言描述想要创建的推送任务。
 
@@ -167,14 +192,19 @@ aiRoutes.post('/create-task', authMiddleware, async (c) => {
 - 不要超过 50 条
 - 超长内容自动截断
 
-## Webhook：
+## 用户现有资源
+
+### Webhook：
 ${webhookList || '暂无'}
 
-## 内容源：
+### 内容源：
 ${sourceList || '暂无'}
 
-## 模板：
+### 模板：
 ${templateList || '暂无'}
+
+### 已创建的任务：
+${taskList || '暂无'}
 
 ## 输出格式
 信息足够后，严格输出以下 JSON，不要输出任何其他内容：
@@ -203,18 +233,14 @@ ${templateList || '暂无'}
 - 没指定时间 → 默认每小时
 - 只推送固定文字 → source_type=none
 - markdown 格式优先
-- 模板默认格式：emoji+标题\n📅 {{date}}\n\n{{content}}`;
+- 模板默认格式：emoji+标题\n📅 {{date}}\n\n{{content}}
+- 用户提到"之前的任务""那个推送"时，参考「已创建的任务」列表
+- 修改任务时，基于现有配置进行调整`;
 
   // Build messages array: system + history + current user message
   const msgArr = [{ role: 'system', content: systemPrompt }];
-  if (Array.isArray(hist) && hist.length > 0) {
-    // Keep last 10 messages for context
-    const recent = hist.slice(-10);
-    for (const m of recent) {
-      if (m.role === 'user' || m.role === 'assistant') {
-        msgArr.push({ role: m.role, content: m.content });
-      }
-    }
+  for (const m of history) {
+    msgArr.push({ role: m.role, content: m.content });
   }
   msgArr.push({ role: 'user', content: message });
 
@@ -256,14 +282,33 @@ ${templateList || '暂无'}
       if (!jsonMatch) throw new Error('not json');
       taskConfig = JSON.parse(jsonMatch[0]);
     } catch (e: any) {
+      // Save assistant reply to database
+      await dbRun(c.env.DB, 'INSERT INTO ai_conversations (user_id, role, content) VALUES (?, ?, ?)', userId, 'assistant', result.slice(0, 2000));
       // Return as conversational reply
       return c.json({ ok: true, reply: result.slice(0, 2000) });
     }
+
+    // Save assistant reply to database
+    await dbRun(c.env.DB, 'INSERT INTO ai_conversations (user_id, role, content) VALUES (?, ?, ?)', userId, 'assistant', JSON.stringify(taskConfig));
 
     return c.json({ ok: true, config: taskConfig });
   } catch (err: any) {
     return c.json({ error: `AI 请求异常: ${err.message}` }, 502);
   }
+});
+
+// Clear conversation history
+aiRoutes.delete('/conversations', authMiddleware, async (c) => {
+  const userId = c.get('userId');
+  await dbRun(c.env.DB, 'DELETE FROM ai_conversations WHERE user_id = ?', userId);
+  return c.json({ ok: true });
+});
+
+// Get conversation history
+aiRoutes.get('/conversations', authMiddleware, async (c) => {
+  const userId = c.get('userId');
+  const messages = await dbAll<any>(c.env.DB, 'SELECT role, content, created_at FROM ai_conversations WHERE user_id = ? ORDER BY created_at ASC LIMIT 50', userId);
+  return c.json({ ok: true, messages });
 });
 
 // Confirm and create task from AI config

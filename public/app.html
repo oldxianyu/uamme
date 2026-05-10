@@ -238,7 +238,10 @@
 
         <!-- AI Create Task -->
         <div id="page-ai-create" class="page hidden">
-          <h2 class="md-title-large mb-24">✨ AI 创建推送任务</h2>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+            <h2 class="md-title-large">✨ AI 创建推送任务</h2>
+            <button class="md-btn md-btn-outlined md-btn-sm" onclick="clearAIConversations()" style="font-size:12px;">🗑️ 清空历史</button>
+          </div>
           <div class="md-card md-card-outlined" style="max-width:720px;">
             <div id="ai-create-chat" style="min-height:400px;max-height:600px;overflow-y:auto;padding:16px;">
               <div class="ai-msg assistant" style="margin-bottom:16px;">

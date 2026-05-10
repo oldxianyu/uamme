@@ -24,7 +24,7 @@
     document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
     document.getElementById(`page-${page}`)?.classList.remove('hidden');
 
-    const titles = { dashboard:'控制台', webhooks:'Webhook 配置', templates:'推送模板', sources:'内容源管理', custom:'自定义内容', push:'推送记录', schedule:'定时推送', settings:'账户设置', users:'用户管理', 'ai-settings':'AI 配置' };
+    const titles = { dashboard:'控制台', webhooks:'Webhook 配置', templates:'推送模板', sources:'内容源管理', custom:'自定义内容', push:'推送记录', schedule:'定时推送', settings:'账户设置', users:'用户管理', 'ai-settings':'系统配置', 'ai-create':'AI 创建任务' };
     document.getElementById('page-title').textContent = titles[page] || page;
     document.getElementById('topbar-actions').innerHTML = '';
 
@@ -42,6 +42,7 @@
       case 'schedule': return loadScheduleTasks();
       case 'users': return loadUsers();
       case 'ai-settings': return loadAISettings();
+      case 'ai-create': return loadAIConversations();
     }
   }
 
@@ -1051,8 +1052,59 @@
     }
   };
 
-  // ===== AI Create Task (multi-turn) =====
-  const aiCreateHistory = JSON.parse(localStorage.getItem('aiCreateHistory') || '[]'); // {role, content}
+  // ===== AI Create Task (multi-turn with DB persistence) =====
+
+  // Load conversation history from database
+  window.loadAIConversations = async function() {
+    const chat = document.getElementById('ai-create-chat');
+    if (!chat) return;
+    const result = await API.getAIConversations();
+    if (result.ok && result.messages && result.messages.length > 0) {
+      // Clear welcome message and show history
+      let html = '';
+      for (const m of result.messages) {
+        if (m.role === 'user') {
+          html += `<div class="ai-msg user" style="margin-bottom:16px;text-align:right;">
+            <div style="background:var(--md-primary);color:var(--md-on-primary);padding:12px 16px;border-radius:12px;display:inline-block;max-width:80%;text-align:left;white-space:pre-wrap;">${esc(m.content)}</div>
+          </div>`;
+        } else {
+          // Try to format as task summary if JSON
+          let content = m.content;
+          try {
+            const cfg = JSON.parse(content);
+            if (cfg.task_name || cfg.template_name) {
+              let summary = `<b>📋 任务概览</b>\n`;
+              summary += `任务名：${esc(cfg.task_name || cfg.template_name || '未命名')}\n`;
+              if (cfg.webhook_id > 0) summary += `Webhook：使用已有 (ID ${cfg.webhook_id})\n`;
+              else if (cfg.webhook_url) summary += `Webhook：${esc(cfg.webhook_url)}\n`;
+              if (cfg.source_type && cfg.source_type !== 'none') summary += `内容源：${cfg.source_type}` + (cfg.source_url ? ` ${esc(cfg.source_url)}` : '') + '\n';
+              content = summary;
+            }
+          } catch {}
+          html += `<div class="ai-msg assistant" style="margin-bottom:16px;">
+            <div style="background:var(--md-primary-container);color:var(--md-on-primary-container);padding:12px 16px;border-radius:12px;display:inline-block;max-width:100%;white-space:pre-wrap;">${content.startsWith('<b>') ? content : esc(content)}</div>
+          </div>`;
+        }
+      }
+      chat.innerHTML = html + `<div id="ai-create-welcome" style="text-align:center;color:var(--md-on-surface-variant);font-size:14px;">💡 以上是历史对话，继续输入新需求</div>`;
+      chat.scrollTop = chat.scrollHeight;
+    }
+  };
+
+  // Clear conversation history
+  window.clearAIConversations = async function() {
+    if (!confirm('确定清空对话历史？')) return;
+    await API.clearAIConversations();
+    const chat = document.getElementById('ai-create-chat');
+    if (chat) chat.innerHTML = `<div id="ai-create-welcome" style="text-align:center;color:var(--md-on-surface-variant);font-size:14px;padding:20px;">
+      💬 对话历史已清空<br><br>
+      <b>试试这些：</b><br>
+      • 「创建一个微博热搜推送，每小时推一次」<br>
+      • 「每天早上8点推送服务器状态」<br>
+      • 「把头条新闻推到测试群」
+    </div>`;
+    showSnackbar('✅ 对话历史已清空');
+  };
 
   window.sendAiCreateMsg = async function() {
     const input = document.getElementById('ai-create-input');
@@ -1077,16 +1129,7 @@
 
     document.getElementById('ai-create-send').disabled = true;
 
-    // Add to history
-    aiCreateHistory.push({ role: "user", content: msg }); localStorage.setItem("aiCreateHistory", JSON.stringify(aiCreateHistory.slice(-20)));
-
-    const result = await API.aiCreateTask(msg, aiCreateHistory.slice(0, -1)); // send history without current msg
-
-    // Add assistant response to history
-    if (result.ok) {
-      const assistantContent = result.config ? JSON.stringify(result.config) : (result.reply || '任务已记录');
-      aiCreateHistory.push({ role: "assistant", content: assistantContent }); localStorage.setItem("aiCreateHistory", JSON.stringify(aiCreateHistory.slice(-20)));
-    }
+    const result = await API.aiCreateTask(msg);
 
     // Remove thinking indicator
     const thinking = document.getElementById('ai-create-thinking');

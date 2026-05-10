@@ -93,7 +93,9 @@ const API = {
   async getAISettings() { return this.request('/api/ai/settings'); },
   async updateAISettings(data) { return this.request('/api/ai/settings', { method: 'PUT', body: JSON.stringify(data) }); },
   async aiOptimize(content, action) { return this.request('/api/ai/optimize', { method: 'POST', body: JSON.stringify({ content, action }) }); },
-  async aiCreateTask(message, messages) { return this.request('/api/ai/create-task', { method: 'POST', body: JSON.stringify({ message, messages }) }); },
+  async aiCreateTask(message) { return this.request('/api/ai/create-task', { method: 'POST', body: JSON.stringify({ message }) }); },
+  async getAIConversations() { return this.request('/api/ai/conversations'); },
+  async clearAIConversations() { return this.request('/api/ai/conversations', { method: 'DELETE' }); },
   async aiConfirmTask(config) { return this.request('/api/ai/confirm-task', { method: 'POST', body: JSON.stringify({ config }) }); },
 
   // Schedule
