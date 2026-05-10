@@ -182,7 +182,10 @@ contentSourceRoutes.post('/:id/test', async (c) => {
       const titles = text.match(/<title[^>]*>([^<]+)<\/title>/gi) || [];
       content = titles.slice(0, 5).map((t: string) => t.replace(/<\/?title[^>]*>/gi, '')).join('\n');
     } else if (source.source_type === 'website' && source.source_url) {
-      const resp = await fetch(source.source_url, {
+      // Multi-URL support: split by comma
+      const urls = source.source_url.split(',').map((u: string) => u.trim()).filter(Boolean);
+      const firstUrl = urls[0] || source.source_url;
+      const resp = await fetch(firstUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; UAMME/1.0)' },
         signal: AbortSignal.timeout(10000),
       });
@@ -196,7 +199,7 @@ contentSourceRoutes.post('/:id/test', async (c) => {
         if (aiSettings?.browserless_token) {
           try {
             content = await fetchBrowserRender({
-              url: source.source_url,
+              url: firstUrl,
               api_token: aiSettings.browserless_token,
               api_url: aiSettings.browserless_url || 'https://chrome.browserless.io/content',
               limit: cfg.limit || 10,
@@ -213,7 +216,8 @@ contentSourceRoutes.post('/:id/test', async (c) => {
     } else if (source.source_type === 'keyword' && source.keyword) {
       content = `关键词"${source.keyword}"的内容抓取功能开发中...`;
     } else if (source.source_type === 'article' && source.source_url) {
-      const resp = await fetch(source.source_url, {
+      const artUrl = source.source_url.split(',')[0].trim();
+      const resp = await fetch(artUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; UAMME/1.0)' },
         signal: AbortSignal.timeout(10000),
       });
@@ -225,7 +229,7 @@ contentSourceRoutes.post('/:id/test', async (c) => {
         if (aiSettings?.browserless_token) {
           try {
             content = await fetchBrowserRender({
-              url: source.source_url,
+              url: artUrl,
               api_token: aiSettings.browserless_token,
               api_url: aiSettings.browserless_url || 'https://chrome.browserless.io/content',
               limit: cfg.limit || 10,
