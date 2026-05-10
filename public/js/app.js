@@ -1017,7 +1017,7 @@
     const textarea = document.getElementById('tpl-content');
     if (content) aiOriginals['tpl-content'] = content;
     showSnackbar('🤖 AI 正在生成模板内容...');
-    const prompt = `请为一个推送模板生成 Markdown 内容。\n\n模板名称：${name}\n模板描述：${desc || '无'}\n\n要求：\n1. 生成适合企业微信机器人推送的 Markdown 内容\n2. 使用 {{title}} {{body}} {{content}} {{date}} 等变量占位符\n3. 格式美观、信息清晰\n4. 直接输出模板内容，不要解释`;
+    const prompt = `请为一个企业微信机器人推送模板生成 Markdown 内容。\n\n模板名称：${name}\n模板描述：${desc || '无'}\n\n格式要求（必须严格遵守）：\n1. 第一行：emoji + 模板名称，如 🔥 微博热搜推送\n2. 空一行后写 📅 {{date}}\n3. 再空一行后写 {{content}}（这是正文内容占位符）\n4. 如果有列表项，用 1. 2. 3. 编号，每条一行\n5. 变量用 {{title}} {{body}} {{content}} {{date}}\n6. 不要加多余的文字说明，直接输出模板内容`;
     const result = await API.aiOptimize(prompt, 'rewrite');
     if (result.ok) {
       textarea.value = result.result;
