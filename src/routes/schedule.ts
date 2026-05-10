@@ -217,26 +217,35 @@ schedule.post('/tasks/:id/run-now', async (c) => {
           content = content.replace(/\{\{title\}\}/g, tpl.name || '');
           content = content.replace(/\{\{body\}\}/g, fetched);
         } else if (source.source_url) {
-          // Auto-fallback to Browserless for website/article
-          const aiBl = await dbGet(db, 'SELECT browserless_token, browserless_url FROM ai_settings WHERE id = 1') as any;
+          const urls = source.source_url.split(',').map((u: string) => u.trim()).filter(Boolean);
+      const aiBl = await dbGet(db, 'SELECT browserless_token, browserless_url FROM ai_settings WHERE id = 1') as any;
+      const fetchedContents: string[] = [];
+      for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        try {
           if (aiBl?.browserless_token) {
-            try {
-              const fetched = await fetchBrowserRender({ url: source.source_url, api_token: aiBl.browserless_token, api_url: aiBl.browserless_url || 'https://chrome.browserless.io/content' });
-              content = content.replace(/\{\{content\}\}/g, fetched);
-              content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
-              content = content.replace(/\{\{title\}\}/g, tpl.name || '');
-              content = content.replace(/\{\{body\}\}/g, fetched);
-            } catch {}
+            const f = await fetchBrowserRender({ url, api_token: aiBl.browserless_token, api_url: aiBl.browserless_url || 'https://chrome.browserless.io/content' });
+            fetchedContents.push(f);
           } else {
-            const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
-            if (resp.ok) {
-              const fetched = await resp.text();
-              content = content.replace(/\{\{content\}\}/g, fetched);
-              content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
-              content = content.replace(/\{\{title\}\}/g, tpl.name || '');
-              content = content.replace(/\{\{body\}\}/g, fetched);
-            }
+            const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
+            if (resp.ok) fetchedContents.push(await resp.text());
           }
+        } catch {}
+      }
+      if (fetchedContents.length > 0) {
+        content = content.replace(/\{\{content\}\}/g, fetchedContents[0] || '');
+        content = content.replace(/\{\{body\}\}/g, fetchedContents[1] || fetchedContents[0] || '');
+      } else {
+        // plain website without browserless
+        const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
+        if (resp.ok) {
+          const fetched = await resp.text();
+          content = content.replace(/\{\{content\}\}/g, fetched);
+          content = content.replace(/\{\{body\}\}/g, fetched);
+        }
+      }
+      content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+      content = content.replace(/\{\{title\}\}/g, tpl.name || '');
         }
       } catch {}
     }
@@ -320,26 +329,34 @@ export async function runScheduler(db: D1Database): Promise<void> {
             content = content.replace(/\{\{title\}\}/g, tpl.name || '');
             content = content.replace(/\{\{body\}\}/g, fetched);
           } else if (source.source_url) {
-            // Auto-fallback to Browserless for website/article
+            const urls = source.source_url.split(',').map((u: string) => u.trim()).filter(Boolean);
             const aiBl = await dbGet(db, 'SELECT browserless_token, browserless_url FROM ai_settings WHERE id = 1') as any;
-            if (aiBl?.browserless_token) {
+            const fetchedContents: string[] = [];
+            for (let i = 0; i < urls.length; i++) {
+              const url = urls[i];
               try {
-                const fetched = await fetchBrowserRender({ url: source.source_url, api_token: aiBl.browserless_token, api_url: aiBl.browserless_url || 'https://chrome.browserless.io/content' });
-                content = content.replace(/\{\{content\}\}/g, fetched);
-                content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
-                content = content.replace(/\{\{title\}\}/g, tpl.name || '');
-                content = content.replace(/\{\{body\}\}/g, fetched);
+                if (aiBl?.browserless_token) {
+                  const f = await fetchBrowserRender({ url, api_token: aiBl.browserless_token, api_url: aiBl.browserless_url || 'https://chrome.browserless.io/content' });
+                  fetchedContents.push(f);
+                } else {
+                  const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
+                  if (resp.ok) fetchedContents.push(await resp.text());
+                }
               } catch {}
+            }
+            if (fetchedContents.length > 0) {
+              content = content.replace(/\{\{content\}\}/g, fetchedContents[0] || '');
+              content = content.replace(/\{\{body\}\}/g, fetchedContents[1] || fetchedContents[0] || '');
             } else {
-              const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
+              const resp = await fetch(source.source_url.split(',')[0].trim(), { signal: AbortSignal.timeout(10000) });
               if (resp.ok) {
                 const fetched = await resp.text();
                 content = content.replace(/\{\{content\}\}/g, fetched);
-                content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
-                content = content.replace(/\{\{title\}\}/g, tpl.name || '');
                 content = content.replace(/\{\{body\}\}/g, fetched);
               }
             }
+            content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+            content = content.replace(/\{\{title\}\}/g, tpl.name || '');
           }
         } catch {}
       }

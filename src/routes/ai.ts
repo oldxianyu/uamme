@@ -193,35 +193,49 @@ ${taskList || '暂无'}
 
 === 模板规则(必须严格遵守) ===
 
-模板中只有3个有效占位符:
+模板中有效占位符:
 1. title = 模板名称
-2. content = 从内容源抓取到的内容
+2. content = 第一个内容源抓取到的内容
 3. date = 当前时间
+4. body = 第二个内容源抓取到的内容(仅多源时有效)
 
-禁止的写法:
-- 不要写 body！body就是content，写了会重复显示相同内容
-- 不要同时写content和body，它们是同一个东西
-- 不要写多个content，一次任务只会抓取一次内容
+使用规则:
+- 单源任务：只用 content，不要写 body
+- 双源任务：用 content 放第一个源，body 放第二个源
+- source_url 用逗号分隔多个URL，顺序对应 content 和 body
+- 例如：source_url="https://a.com,https://b.com" 则 content=第一个URL的内容，body=第二个URL的内容
+- 不要写多个 content
 
-正确的模板内容格式:
+正确的双源模板格式:
 emoji 标题
 
 日期 date
 
+第一个源标题
 content
 
+---
+
+第二个源标题
+body
+
 例如:
-🔥 微博热搜
+🔥 娱乐推送
 
 📅 date
 
+🟢 36氪热搜 TOP10
 content
 
-一个任务只能配一个内容源:
-- 如果用户要推多个平台(如36氪+微博)，创建多个独立任务
-- 每个任务 = 1个内容源 + 1个模板 + 1个Webhook
-- 不要在一个模板里试图合并多个源的内容
-- 不要在一个source_url里填多个逗号分隔的URL
+---
+
+🔴 微博热搜 TOP10
+body
+
+一个任务可以配多个内容源:
+- source_url 用逗号分隔多个URL
+- 每个URL的内容分别填充 content 和 body
+- 每个源取前10条，在 source_config 中设置 {"limit": 10}
 
 === 输出格式 ===
 
