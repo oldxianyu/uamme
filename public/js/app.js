@@ -616,7 +616,7 @@
   function formatTime(str) {
     if (!str) return '--';
     const d = new Date(str + 'Z');
-    return d.toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    return d.toLocaleString('zh-CN', { timeZone:'Asia/Shanghai', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
   }
 
   function esc(str) {
@@ -724,7 +724,7 @@
       const statusBadge = t.enabled
         ? '<span class="md-badge md-badge-success">启用</span>'
         : '<span class="md-badge">停用</span>';
-      const lastRun = t.last_run_at ? new Date(t.last_run_at).toLocaleString('zh-CN') : '从未执行';
+      const lastRun = t.last_run_at ? new Date(t.last_run_at).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai'}) : '从未执行';
       return `
         <div class="md-card md-card-outlined mb-16">
           <div class="flex-between" style="align-items:flex-start;">
@@ -924,7 +924,7 @@
       const badge = r.status === 'success'
         ? '<span class="md-badge md-badge-success">成功</span>'
         : '<span class="md-badge md-badge-error">失败</span>';
-      return `<tr><td>${new Date(r.run_at).toLocaleString('zh-CN')}</td><td>${badge}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.result || '-')}</td></tr>`;
+      return `<tr><td>${new Date(r.run_at).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai'})}</td><td>${badge}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.result || '-')}</td></tr>`;
     }).join('');
     showDialog('执行记录', `
       <div style="overflow-x:auto;">
