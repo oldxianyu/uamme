@@ -213,11 +213,17 @@ schedule.post('/tasks/:id/run-now', async (c) => {
           if ((source.source_type === 'api-call' || source.source_type === 'browser-render') && source.source_url && !cfg.url) cfg.url = source.source_url;
           const fetched = await fetchBySourceType(source.source_type, cfg);
           content = content.replace(/\{\{content\}\}/g, fetched);
+          content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+          content = content.replace(/\{\{title\}\}/g, tpl.name || '');
+          content = content.replace(/\{\{body\}\}/g, fetched);
         } else if (source.source_url) {
           const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
           if (resp.ok) {
             const fetched = await resp.text();
             content = content.replace(/\{\{content\}\}/g, fetched);
+            content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+            content = content.replace(/\{\{title\}\}/g, tpl.name || '');
+            content = content.replace(/\{\{body\}\}/g, fetched);
           }
         }
       } catch {}
@@ -298,11 +304,17 @@ export async function runScheduler(db: D1Database): Promise<void> {
             if ((source.source_type === 'api-call' || source.source_type === 'browser-render') && source.source_url && !cfg.url) cfg.url = source.source_url;
             const fetched = await fetchBySourceType(source.source_type, cfg);
             content = content.replace(/\{\{content\}\}/g, fetched);
+            content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+            content = content.replace(/\{\{title\}\}/g, tpl.name || '');
+            content = content.replace(/\{\{body\}\}/g, fetched);
           } else if (source.source_url) {
             const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
             if (resp.ok) {
               const fetched = await resp.text();
               content = content.replace(/\{\{content\}\}/g, fetched);
+              content = content.replace(/\{\{date\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+              content = content.replace(/\{\{title\}\}/g, tpl.name || '');
+              content = content.replace(/\{\{body\}\}/g, fetched);
             }
           }
         } catch {}

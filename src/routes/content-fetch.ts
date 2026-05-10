@@ -366,26 +366,40 @@ async function fetchBrowserRender(config: any): Promise<string> {
 
   const html = await resp.text();
 
-  // Extract readable text from rendered HTML
-  const text = html
+  // Strip script/style tags
+  const cleaned = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/<style[\s\S]*?<\/style>/gi, '');
 
-  if (text.length < 50) {
-    throw new Error('渲染后页面内容为空，可能需要配置 CSS 选择器 (selector)');
-  }
-
-  // If a selector is provided, try to extract specific content
+  // If a CSS selector is provided, try to extract that element's content
   if (selector) {
-    // Simple regex extraction for common patterns
-    const match = html.match(new RegExp(`<[^>]*class="[^"]*${selector}[^"]*"[^>]*>([\s\S]*?)<\/`, 'i'));
+    const re = new RegExp(`<[^>]*class="[^"]*${selector}[^"]*"[^>]*>([\\s\\S]*?)</`, 'i');
+    const match = cleaned.match(re);
     if (match) {
-      return match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 4000);
+      const inner = match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (inner.length > 50) return inner.slice(0, 4000);
     }
   }
 
+  // Smart extraction: find numbered list items (e.g. hot search rankings)
+  const lines = cleaned.split(/<[^>]+>/).map((s: string) => s.trim()).filter(Boolean);
+  const numbered: string[] = [];
+  for (const line of lines) {
+    // Match patterns like "1 王楚钦..." or "1. 王楚钦..."
+    const m = line.match(/^\d{1,3}[.\s、]+(.+)/);
+    if (m && m[1].length > 1 && m[1].length < 100) {
+      numbered.push(line.replace(/^\d{1,3}[.\s、]+/, ''));
+    }
+  }
+
+  if (numbered.length >= 5) {
+    return numbered.slice(0, 50).map((item, i) => `${i + 1}. ${item}`).join('\n');
+  }
+
+  // Fallback: return cleaned text
+  const text = lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (text.length < 50) {
+    throw new Error('渲染后页面内容为空，可能需要配置 CSS 选择器 (selector)');
+  }
   return text.slice(0, 4000);
 }
