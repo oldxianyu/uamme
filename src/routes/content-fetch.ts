@@ -342,10 +342,12 @@ async function fetchBrowserRender(config: any): Promise<string> {
   if (!url) throw new Error('缺少目标 URL 配置');
   if (!api_token) throw new Error('缺少 Browserless API Token');
 
-  // Build request body
+  // Build request body (Browserless v2 only accepts url, selector, gotoOptions)
   const body: any = {
     url,
-    waitForSelector: selector || undefined,
+  };
+  if (selector) body.selector = selector;
+  body.gotoOptions = {
     waitUntil: 'networkidle0',
     timeout: 30000,
   };
