@@ -223,7 +223,9 @@
         </div>
       </div>
       <div class="md-field"><label>内容 <span class="md-body-small" style="color:var(--md-on-surface-variant)">（可用 {{title}} {{body}} {{content}} 变量）</span></label><textarea id="tpl-content" rows="4" style="resize:vertical;min-height:80px">${esc(tpl.content)}</textarea></div>
-      <div class="flex gap-8 mb-8">
+      <div class="flex gap-8 mb-8 items-center">
+        <button class="md-btn md-btn-filled md-btn-sm" onclick="aiGenTemplate()" type="button">🤖 AI 生成</button>
+        <span class="md-body-small" style="color:var(--md-on-surface-variant)">|</span>
         <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('tpl-content','rewrite','润色改写')">✨ 润色</button>
         <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('tpl-content','summarize','精简摘要')">📋 精简</button>
         <button class="md-btn md-btn-tonal md-btn-sm" onclick="aiOptimize('tpl-content','markdown','转 Markdown')">📝 转 MD</button>
@@ -1001,10 +1003,28 @@
     if (textarea && original !== undefined) {
       textarea.value = original;
       delete aiOriginals[textareaId];
-      // 移除撤回按钮
       const btn = document.getElementById('undo-' + textareaId);
       if (btn) btn.remove();
       showSnackbar('↩️ 已撤回，恢复原文');
+    }
+  };
+
+  window.aiGenTemplate = async function() {
+    const name = document.getElementById('tpl-name')?.value.trim();
+    const desc = document.getElementById('tpl-desc')?.value.trim();
+    const content = document.getElementById('tpl-content')?.value.trim();
+    if (!name) { showSnackbar('请先输入模板名称'); return; }
+    const textarea = document.getElementById('tpl-content');
+    if (content) aiOriginals['tpl-content'] = content;
+    showSnackbar('🤖 AI 正在生成模板内容...');
+    const prompt = `请为一个推送模板生成 Markdown 内容。\n\n模板名称：${name}\n模板描述：${desc || '无'}\n\n要求：\n1. 生成适合企业微信机器人推送的 Markdown 内容\n2. 使用 {{title}} {{body}} {{content}} {{date}} 等变量占位符\n3. 格式美观、信息清晰\n4. 直接输出模板内容，不要解释`;
+    const result = await API.aiOptimize(prompt, 'rewrite');
+    if (result.ok) {
+      textarea.value = result.result;
+      showSnackbar('✅ 模板内容已生成');
+      showUndoButton('tpl-content', textarea);
+    } else {
+      showSnackbar('❌ ' + (result.error || 'AI 生成失败'));
     }
   };
 
