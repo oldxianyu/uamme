@@ -383,9 +383,33 @@ export async function fetchBrowserRender(config: any): Promise<string> {
 
   // Smart extraction: find numbered list items (e.g. hot search rankings)
   const lines = cleaned.split(/<[^>]+>/).map((s: string) => s.trim()).filter(Boolean);
+  
+  // Filter out noise: timestamps, navigation, footer, meta info
+  const noisePatterns = /^(\d{1,2}:\d{2}:\d{2}|\d{4}[\/-]\d{1,2}[\/-]\d{1,2}|首页|全部平台|关于|联系我们|GitHub|Email|网站|©|All rights|快速链接|深入探索|计算机硬件|软件|编程|设置|更新频率|内容类型|社交媒体热点|娱乐|事件|中国最大的|热门内容聚合|热点速览|汇聚各大|每\d+分钟|有任何问题|\d{4}$)/i;
+  
+  // First try: find elements with specific class pattern (e.g. "block p-5" for weibo hot list)
+  const blockPattern = /class="block p-5[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+  const blockItems: string[] = [];
+  let blockMatch;
+  while ((blockMatch = blockPattern.exec(cleaned)) !== null) {
+    const inner = blockMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    // Extract: remove number prefix and timestamp suffix
+    const cleaned_item = inner.replace(/^\d{1,3}\s+/, '').replace(/\s+\d{1,2}:\d{2}:\d{2}\s*$/, '').trim();
+    if (cleaned_item.length > 1 && cleaned_item.length < 100) {
+      blockItems.push(cleaned_item);
+    }
+  }
+  
+  if (blockItems.length >= 5) {
+    return blockItems.slice(0, 50).map((item, i) => `${i + 1}. ${item}`).join('\n');
+  }
+  
+  // Fallback: try numbered list pattern
   const numbered: string[] = [];
   for (const line of lines) {
-    // Match patterns like "1 王楚钦..." or "1. 王楚钦..."
+    if (noisePatterns.test(line)) continue;
+    if (/^\d{1,2}:\d{2}:\d{2}$/.test(line)) continue;
+    if (/^\d{4}$/.test(line)) continue;
     const m = line.match(/^\d{1,3}[.\s、]+(.+)/);
     if (m && m[1].length > 1 && m[1].length < 100) {
       numbered.push(line.replace(/^\d{1,3}[.\s、]+/, ''));

@@ -1052,7 +1052,7 @@
   };
 
   // ===== AI Create Task (multi-turn) =====
-  const aiCreateHistory = []; // {role, content}
+  const aiCreateHistory = JSON.parse(localStorage.getItem('aiCreateHistory') || '[]'); // {role, content}
 
   window.sendAiCreateMsg = async function() {
     const input = document.getElementById('ai-create-input');
@@ -1078,14 +1078,14 @@
     document.getElementById('ai-create-send').disabled = true;
 
     // Add to history
-    aiCreateHistory.push({ role: 'user', content: msg });
+    aiCreateHistory.push({ role: "user", content: msg }); localStorage.setItem("aiCreateHistory", JSON.stringify(aiCreateHistory.slice(-20)));
 
     const result = await API.aiCreateTask(msg, aiCreateHistory.slice(0, -1)); // send history without current msg
 
     // Add assistant response to history
     if (result.ok) {
       const assistantContent = result.config ? JSON.stringify(result.config) : (result.reply || '任务已记录');
-      aiCreateHistory.push({ role: 'assistant', content: assistantContent });
+      aiCreateHistory.push({ role: "assistant", content: assistantContent }); localStorage.setItem("aiCreateHistory", JSON.stringify(aiCreateHistory.slice(-20)));
     }
 
     // Remove thinking indicator
