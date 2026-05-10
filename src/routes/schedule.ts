@@ -222,13 +222,18 @@ schedule.post('/tasks/:id/run-now', async (c) => {
     }
   }
 
+  // WeChat Work markdown limit: 4096 chars
+  if (tpl.format === 'markdown' && content.length > 4000) {
+    content = content.substring(0, 4000) + '\n\n---\n⚠️ 内容过长已截断';
+  }
+
   const body: Record<string, any> = {};
   if (tpl.format === 'markdown') {
     body.msgtype = 'markdown';
     body.markdown = { content };
   } else {
     body.msgtype = 'text';
-    body.text = { content };
+    body.text = { content: content.substring(0, 2048) };
   }
 
   let status = 'success';
@@ -300,13 +305,18 @@ export async function runScheduler(db: D1Database): Promise<void> {
       }
     }
 
+    // WeChat Work markdown limit: 4096 chars
+    if (tpl.format === 'markdown' && content.length > 4000) {
+      content = content.substring(0, 4000) + '\n\n---\n⚠️ 内容过长已截断';
+    }
+
     const body: Record<string, any> = {};
     if (tpl.format === 'markdown') {
       body.msgtype = 'markdown';
       body.markdown = { content };
     } else {
       body.msgtype = 'text';
-      body.text = { content };
+      body.text = { content: content.substring(0, 2048) };
     }
 
     let status = 'success';

@@ -132,6 +132,12 @@ pushRoutes.post('/send', async (c) => {
 
   // Build WeChat Work message
   const format = body.format === 'markdown' ? 'markdown' : 'text';
+  // WeChat Work limits: markdown 4096, text 2048
+  if (format === 'markdown' && pushBody.length > 4000) {
+    pushBody = pushBody.substring(0, 4000) + '\n\n---\n⚠️ 内容过长已截断';
+  } else if (format === 'text' && pushBody.length > 2048) {
+    pushBody = pushBody.substring(0, 2048) + '\n\n⚠️ 内容过长已截断';
+  }
   let payload: any;
   if (format === 'markdown') {
     payload = { msgtype: 'markdown', markdown: { content: pushBody } };
