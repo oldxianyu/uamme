@@ -1080,7 +1080,8 @@
 
     // Add assistant response to history
     if (result.ok) {
-      aiCreateHistory.push({ role: 'assistant', content: JSON.stringify(result.config) });
+      const assistantContent = result.config ? JSON.stringify(result.config) : (result.reply || '任务已记录');
+      aiCreateHistory.push({ role: 'assistant', content: assistantContent });
     }
 
     // Remove thinking indicator
@@ -1108,6 +1109,11 @@
           <button class="md-btn md-btn-filled md-btn-sm" onclick='confirmAiTask(${JSON.stringify(cfg).replace(/'/g, "&#39;")})'>✅ 确认创建</button>
           <button class="md-btn md-btn-outlined md-btn-sm" onclick="document.getElementById('ai-create-input').focus()">✏️ 重新描述</button>
         </div>
+      </div>`;
+    } else if (result.ok && result.reply) {
+      // AI returned a conversational reply instead of task config
+      chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
+        <div style="background:var(--md-secondary-container);color:var(--md-on-secondary-container);padding:12px 16px;border-radius:12px;display:inline-block;max-width:100%;white-space:pre-wrap;">${esc(result.reply)}</div>
       </div>`;
     } else {
       chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
