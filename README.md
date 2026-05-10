@@ -100,6 +100,7 @@ uamme/
 │       ├── push.ts            # 推送执行
 │       ├── dashboard.ts       # 仪表盘数据
 │       ├── ai.ts              # AI 优化/生成/自然语言创建任务
+      ├── content-fetch.ts   # 内容源抓取（API调用/浏览器渲染/服务器监控/早报）
 │       ├── schedule.ts        # 定时推送任务管理
 │       └── api.ts             # API 汇总路由
 ├── public/
@@ -115,6 +116,7 @@ uamme/
 │   ├── 0002_seed.sql          # 默认管理员
 │   ├── 0003_ai_settings.sql   # AI 设置表
 │   ├── 0004_scheduled_tasks.sql # 定时任务表
+    └── 0005_agent_settings.sql  # Agent 配置字段
 │   └── 0005_agent_settings.sql  # Agent 配置字段
 ├── scripts/
 │   ├── build-embedded.js      # 静态资源嵌入构建
@@ -137,6 +139,7 @@ npx wrangler d1 execute uamme-db --local --file=migrations/0001_init.sql
 npx wrangler d1 execute uamme-db --local --file=migrations/0002_seed.sql
 npx wrangler d1 execute uamme-db --local --file=migrations/0003_ai_settings.sql
 npx wrangler d1 execute uamme-db --local --file=migrations/0004_scheduled_tasks.sql
+    └── 0005_agent_settings.sql  # Agent 配置字段
 npx wrangler d1 execute uamme-db --local --file=migrations/0005_agent_settings.sql
 
 # 启动开发服务器
