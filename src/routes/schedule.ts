@@ -208,8 +208,10 @@ schedule.post('/tasks/:id/run-now', async (c) => {
     const source = await dbGet(db, 'SELECT * FROM content_sources WHERE id = ? AND user_id = ?', task.source_id, userId) as any;
     if (source) {
       try {
-        if (source.source_type === 'server-monitor' || source.source_type === 'news-briefing') {
-          const fetched = await fetchBySourceType(source.source_type, source.config);
+        if (source.source_type === 'server-monitor' || source.source_type === 'news-briefing' || source.source_type === 'api-call') {
+          const cfg = typeof source.config === 'string' ? JSON.parse(source.config || '{}') : (source.config || {});
+          if (source.source_type === 'api-call' && source.source_url && !cfg.url) cfg.url = source.source_url;
+          const fetched = await fetchBySourceType(source.source_type, cfg);
           content = content.replace(/\{\{content\}\}/g, fetched);
         } else if (source.source_url) {
           const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });
@@ -291,8 +293,10 @@ export async function runScheduler(db: D1Database): Promise<void> {
       const source = await dbGet(db, 'SELECT * FROM content_sources WHERE id = ?', task.source_id) as any;
       if (source) {
         try {
-          if (source.source_type === 'server-monitor' || source.source_type === 'news-briefing') {
-            const fetched = await fetchBySourceType(source.source_type, source.config);
+          if (source.source_type === 'server-monitor' || source.source_type === 'news-briefing' || source.source_type === 'api-call') {
+            const cfg = typeof source.config === 'string' ? JSON.parse(source.config || '{}') : (source.config || {});
+            if (source.source_type === 'api-call' && source.source_url && !cfg.url) cfg.url = source.source_url;
+            const fetched = await fetchBySourceType(source.source_type, cfg);
             content = content.replace(/\{\{content\}\}/g, fetched);
           } else if (source.source_url) {
             const resp = await fetch(source.source_url, { signal: AbortSignal.timeout(10000) });

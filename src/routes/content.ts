@@ -49,7 +49,7 @@ contentSourceRoutes.post('/', async (c) => {
     return c.json({ error: '名称和类型不能为空' }, 400);
   }
 
-  const validTypes = ['rss', 'website', 'keyword', 'article', 'server-monitor', 'news-briefing'];
+  const validTypes = ['rss', 'website', 'keyword', 'article', 'server-monitor', 'news-briefing', 'api-call'];
   if (!validTypes.includes(source_type)) {
     return c.json({ error: '无效的内容类型' }, 400);
   }
@@ -162,8 +162,12 @@ contentSourceRoutes.post('/:id/test', async (c) => {
 
   try {
     // Special types with custom fetch handlers
-    if (source.source_type === 'server-monitor' || source.source_type === 'news-briefing') {
-      const content = await fetchBySourceType(source.source_type, source.config);
+    if (source.source_type === 'server-monitor' || source.source_type === 'news-briefing' || source.source_type === 'api-call') {
+      const cfg = typeof source.config === 'string' ? JSON.parse(source.config || '{}') : (source.config || {});
+      if (source.source_type === 'api-call' && source.source_url && !cfg.url) {
+        cfg.url = source.source_url;
+      }
+      const content = await fetchBySourceType(source.source_type, cfg);
       return c.json({ ok: true, content: content.slice(0, 4000) });
     }
 

@@ -331,7 +331,7 @@
       document.getElementById('source-list').innerHTML = '<div class="empty-state"><div class="icon">📰</div><h3>暂无内容源</h3><p>添加 RSS、网页、关键词等内容来源</p></div>';
       return;
     }
-    const typeLabels = { rss:'RSS', website:'网页', keyword:'关键词', article:'文章', 'server-monitor':'服务器监控', 'news-briefing':'每日早报' };
+    const typeLabels = { rss:'RSS', website:'网页', keyword:'关键词', article:'文章', 'server-monitor':'服务器监控', 'news-briefing':'每日早报', 'api-call':'API 调用' };
     document.getElementById('source-list').innerHTML = sources.map(s => `
       <div class="md-card md-card-outlined mb-16">
         <div class="flex-between">
@@ -366,6 +366,7 @@
           <option value="article" ${src.source_type==='article'?'selected':''}>指定文章</option>
           <option value="server-monitor" ${src.source_type==='server-monitor'?'selected':''}>🖥️ 服务器监控</option>
           <option value="news-briefing" ${src.source_type==='news-briefing'?'selected':''}>📰 每日早报</option>
+          <option value="api-call" ${src.source_type==='api-call'?'selected':''}>🔌 API 调用</option>
         </select>
       </div>
       <div class="md-field" id="src-url-field"><label>URL</label><input id="src-url" value="${esc(src.source_url)}" placeholder="https://..."></div>
@@ -383,12 +384,17 @@
     const type = document.getElementById('src-type').value;
     document.getElementById('src-url-field').classList.toggle('hidden', type === 'keyword' || type === 'server-monitor' || type === 'news-briefing');
     document.getElementById('src-keyword-field').classList.toggle('hidden', type !== 'keyword');
-    document.getElementById('src-config-field').classList.toggle('hidden', type !== 'server-monitor' && type !== 'news-briefing');
+    document.getElementById('src-config-field').classList.toggle('hidden', type !== 'server-monitor' && type !== 'news-briefing' && type !== 'api-call');
     // Auto-fill config JSON for known types
     if (type === 'server-monitor') {
       document.getElementById('src-config').value = src.config || JSON.stringify({base_url:'https://066609.xyz', ignore_nodes:'美国灵车3.8'}, null, 2);
     } else if (type === 'news-briefing') {
       document.getElementById('src-config').value = src.config || JSON.stringify({weather_api_key:'', city_adcode:'370100', news_query:'(零售药店 OR 连锁药店 OR 药店) (监管 OR 处罚 OR 约谈 OR 医保 OR 转型 OR 健康驿站)', news_days:'3', news_limit:'8'}, null, 2);
+    } else if (type === 'api-call') {
+      document.getElementById('src-url').placeholder = 'https://api.example.com/data';
+      if (!src.config || src.config === '{}') {
+        document.getElementById('src-config').value = JSON.stringify({method:'GET', headers:{}, json_path:'data', item_separator:'\n', max_items:20, template:'{{?}}'}, null, 2);
+      }
     }
   };
 

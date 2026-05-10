@@ -267,6 +267,70 @@ export async function fetchBySourceType(sourceType: string, config: any): Promis
   switch (sourceType) {
     case 'server-monitor': return fetchServerStatus(cfg);
     case 'news-briefing': return fetchNewsBriefing(cfg);
+    case 'api-call': return fetchApiCall(cfg);
     default: throw new Error(`未知的内容源类型: ${sourceType}`);
   }
+}
+
+// ===== API Call Fetcher =====
+async function fetchApiCall(config: any): Promise<string> {
+  const { url, method = 'GET', headers = {}, body, json_path, item_separator = '\n', max_items = 20, template } = config;
+  if (!url) throw new Error('缺少 API URL 配置');
+
+  const fetchOpts: RequestInit = {
+    method: method.toUpperCase(),
+    headers: { 'Content-Type': 'application/json', ...headers },
+    signal: AbortSignal.timeout(15000),
+  };
+  if (method.toUpperCase() === 'POST' && body) {
+    fetchOpts.body = typeof body === 'string' ? body : JSON.stringify(body);
+  }
+
+  const resp = await fetch(url, fetchOpts);
+  if (!resp.ok) throw new Error(`API 请求失败: ${resp.status} ${resp.statusText}`);
+
+  const data = await resp.json();
+
+  // Extract data by json_path (e.g. "data.news" or "data.items")
+  let items: any = data;
+  if (json_path) {
+    for (const key of json_path.split('.')) {
+      if (items && typeof items === 'object') {
+        items = items[key];
+      } else {
+        throw new Error(`JSON 路径 '${json_path}' 解析失败，在 '${key}' 处中断`);
+      }
+    }
+  }
+
+  if (items === undefined || items === null) {
+    throw new Error(`JSON 路径 '${json_path}' 未找到数据`);
+  }
+
+  // If items is an array, format each item
+  if (Array.isArray(items)) {
+    const limited = items.slice(0, max_items);
+    if (template) {
+      // Use template to format each item
+      return limited.map((item: any) => {
+        let line = template;
+        if (typeof item === 'object') {
+          for (const [k, v] of Object.entries(item)) {
+            line = line.replace(new RegExp(`\{\{${k}\}\}`, 'g'), String(v ?? ''));
+          }
+        } else {
+          line = line.replace(/\{\{\?\}\}/g, String(item));
+        }
+        return line;
+      }).join(item_separator);
+    }
+    // Default: stringify each item
+    return limited.map((item: any) => typeof item === 'object' ? JSON.stringify(item) : String(item)).join(item_separator);
+  }
+
+  // If items is a string, return directly
+  if (typeof items === 'string') return items;
+
+  // Otherwise stringify
+  return JSON.stringify(items, null, 2);
 }
