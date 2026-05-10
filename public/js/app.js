@@ -946,6 +946,9 @@
     document.getElementById('ai-api-key').value = s.api_key || '';
     document.getElementById('ai-model').value = s.model || 'mimo-v2.5';
     document.getElementById('ai-enabled').checked = !!s.enabled;
+    document.getElementById('ai-agent-url').value = s.agent_url || '';
+    document.getElementById('ai-agent-key').value = s.agent_key || '';
+    document.getElementById('ai-agent-enabled').checked = !!s.agent_enabled;
   }
 
   window.saveAISettings = async function() {
@@ -954,6 +957,9 @@
       api_key: document.getElementById('ai-api-key').value.trim(),
       model: document.getElementById('ai-model').value.trim(),
       enabled: document.getElementById('ai-enabled').checked ? 1 : 0,
+      agent_url: document.getElementById('ai-agent-url').value.trim(),
+      agent_key: document.getElementById('ai-agent-key').value.trim(),
+      agent_enabled: document.getElementById('ai-agent-enabled').checked ? 1 : 0,
     };
     if (!data.api_url || !data.api_key || !data.model) {
       showSnackbar('请填写所有字段'); return;
@@ -1041,7 +1047,9 @@
     }
   };
 
-  // ===== AI Create Task =====
+  // ===== AI Create Task (multi-turn) =====
+  const aiCreateHistory = []; // {role, content}
+
   window.sendAiCreateMsg = async function() {
     const input = document.getElementById('ai-create-input');
     const msg = input.value.trim();
@@ -1065,7 +1073,15 @@
 
     document.getElementById('ai-create-send').disabled = true;
 
-    const result = await API.aiCreateTask(msg);
+    // Add to history
+    aiCreateHistory.push({ role: 'user', content: msg });
+
+    const result = await API.aiCreateTask(msg, aiCreateHistory.slice(0, -1)); // send history without current msg
+
+    // Add assistant response to history
+    if (result.ok) {
+      aiCreateHistory.push({ role: 'assistant', content: JSON.stringify(result.config) });
+    }
 
     // Remove thinking indicator
     const thinking = document.getElementById('ai-create-thinking');

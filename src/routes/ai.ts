@@ -9,8 +9,8 @@ aiRoutes.get('/settings', authMiddleware, async (c) => {
   const userId = c.get('userId');
   if (userId !== 1) return c.json({ error: '无权操作' }, 403);
 
-  const settings = await dbGet<any>(c.env.DB, 'SELECT id, api_url, api_key, model, enabled FROM ai_settings WHERE id = 1');
-  return c.json({ settings: settings || { api_url: '', api_key: '', model: 'mimo-v2.5', enabled: 0 } });
+  const settings = await dbGet<any>(c.env.DB, 'SELECT id, api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled FROM ai_settings WHERE id = 1');
+  return c.json({ settings: settings || { api_url: '', api_key: '', model: 'mimo-v2.5', enabled: 0, agent_url: '', agent_key: '', agent_enabled: 0 } });
 });
 
 // Update AI settings (admin only)
@@ -18,20 +18,21 @@ aiRoutes.put('/settings', authMiddleware, async (c) => {
   const userId = c.get('userId');
   if (userId !== 1) return c.json({ error: '无权操作' }, 403);
 
-  const { api_url, api_key, model, enabled } = await c.req.json();
+  const { api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled } = await c.req.json();
 
   if (!api_url || typeof api_url !== 'string') return c.json({ error: 'API 地址必填' }, 400);
   if (!api_key || typeof api_key !== 'string') return c.json({ error: 'API 密钥必填' }, 400);
   if (!model || typeof model !== 'string') return c.json({ error: '模型名称必填' }, 400);
 
-  // Validate URL format
   try { new URL(api_url); } catch { return c.json({ error: 'API 地址格式错误' }, 400); }
+  if (agent_url) { try { new URL(agent_url); } catch { return c.json({ error: 'Agent URL 格式错误' }, 400); } }
 
   await dbRun(c.env.DB, `
-    INSERT INTO ai_settings (id, api_url, api_key, model, enabled, updated_at)
-    VALUES (1, ?, ?, ?, ?, datetime('now'))
-    ON CONFLICT(id) DO UPDATE SET api_url=?, api_key=?, model=?, enabled=?, updated_at=datetime('now')
-  `, api_url, api_key, model, enabled ? 1 : 0, api_url, api_key, model, enabled ? 1 : 0);
+    INSERT INTO ai_settings (id, api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled, updated_at)
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(id) DO UPDATE SET api_url=?, api_key=?, model=?, enabled=?, agent_url=?, agent_key=?, agent_enabled=?, updated_at=datetime('now')
+  `, api_url, api_key, model, enabled ? 1 : 0, agent_url || '', agent_key || '', agent_enabled ? 1 : 0,
+     api_url, api_key, model, enabled ? 1 : 0, agent_url || '', agent_key || '', agent_enabled ? 1 : 0);
 
   return c.json({ ok: true });
 });
@@ -66,14 +67,19 @@ aiRoutes.post('/optimize', authMiddleware, async (c) => {
   const fullPrompt = prompt + content;
 
   try {
-    const resp = await fetch(settings.api_url, {
+    const useAgent = settings.agent_enabled && settings.agent_url;
+    const apiUrl = useAgent ? settings.agent_url : settings.api_url;
+    const apiKey = useAgent ? settings.agent_key : settings.api_key;
+    const mdl = useAgent ? 'hermes' : settings.model;
+
+    const resp = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${settings.api_key}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: settings.model,
+        model: mdl,
         messages: [{ role: 'user', content: fullPrompt }],
         max_tokens: 2048,
         temperature: 0.7,
@@ -100,13 +106,13 @@ aiRoutes.post('/optimize', authMiddleware, async (c) => {
 // AI create task from natural language
 aiRoutes.post('/create-task', authMiddleware, async (c) => {
   const userId = c.get('userId');
-  const settings = await dbGet<any>(c.env.DB, 'SELECT api_url, api_key, model, enabled FROM ai_settings WHERE id = 1');
+  const settings = await dbGet<any>(c.env.DB, 'SELECT api_url, api_key, model, enabled, agent_url, agent_key, agent_enabled FROM ai_settings WHERE id = 1');
 
   if (!settings || !settings.enabled) {
     return c.json({ error: 'AI 功能未启用，请在 AI 设置中配置' }, 400);
   }
 
-  const { message } = await c.req.json();
+  const { message, messages: hist } = await c.req.json();
   if (!message || typeof message !== 'string') {
     return c.json({ error: '请输入描述' }, 400);
   }
@@ -124,59 +130,77 @@ aiRoutes.post('/create-task', authMiddleware, async (c) => {
   const templateList = templates.map((t: any) => `id=${t.id} name="${t.name}" format=${t.format}`).join('\n');
   const sourceList = sources.map((s: any) => `id=${s.id} name="${s.name}" type=${s.source_type} url=${s.source_url || ''}`).join('\n');
 
-  const systemPrompt = `你是一个企微推送任务创建助手。用户会用自然语言描述想要创建的推送任务，你需要解析成结构化的 JSON。
+  const systemPrompt = `你是一个企微推送任务创建助手。用户会用自然语言描述想要创建的推送任务。
 
-## 输出格式
-严格输出以下 JSON，不要输出任何其他内容：
+你的工作流程：
+1. 先理解用户需求，如果信息不足就追问（比如：推送到哪里？多久推一次？）
+2. 信息足够后，生成 JSON 配置
+3. 生成配置时，严格输出以下 JSON，不要输出任何其他内容：
 {
-  "task_name": "任务名称（简短描述）",
-  "webhook_id": 使用现有webhook的id，或0表示新建,
+  "task_name": "任务名称",
+  "webhook_id": 现有webhook的id或0,
   "webhook_name": "webhook名称（新建时需要）",
   "webhook_url": "webhook URL（新建时需要）",
-  "source_id": 使用现有内容源的id，或0表示不需要,
-  "source_type": "内容源类型: rss/website/server-monitor/news-briefing/custom/none",
-  "source_url": "内容源URL（website/rss类型需要）",
-  "source_config": {内容源配置对象，server-monitor/news-briefing需要},
+  "source_id": 现有内容源id或0,
+  "source_type": "rss/website/server-monitor/news-briefing/api-call/browser-render/none",
+  "source_url": "内容源URL",
+  "source_config": {},
   "template_name": "模板名称",
-  "template_format": "markdown 或 text",
-  "template_content": "模板内容，用 {{title}} {{url}} {{content}} 等占位符",
+  "template_format": "markdown",
+  "template_content": "模板内容（用 {{title}} {{content}} {{date}} 占位符）",
   "schedule_type": "cron 或 interval",
-  "cron_expr": "cron表达式（schedule_type=cron时）",
-  "interval_minutes": 间隔分钟数（schedule_type=interval时）,
-  "enabled": true
+  "cron_expr": "cron表达式",
+  "interval_minutes": 间隔分钟数,
+  "enabled": 1
 }
 
-## 用户可选的 webhook：
+## Webhook：
 ${webhookList || '暂无'}
 
-## 用户可选的内容源：
+## 内容源：
 ${sourceList || '暂无'}
 
-## 用户可选的模板：
+## 模板：
 ${templateList || '暂无'}
 
 ## 规则：
-- 如果用户说"推送到xxx"，匹配现有 webhook；如果没有匹配，新建
-- 如果用户说"爬取xxx网页"，创建 website 类型内容源
-- 如果用户说"定时"，设置 cron 或 interval
-- 如果用户说"循环"，使用 interval
-- 如果用户没指定时间，默认每小时一次
-- 如果用户只是想推送一段固定文字，不需要内容源，source_type 用 none
-- 推送 markdown 格式优先`;
+- 推送到xxx → 匹配 webhook
+- 爬取xxx → website 类型
+- 定时 → cron/interval
+- 没指定时间 → 默认每小时
+- 只推送固定文字 → source_type=none
+- markdown 格式优先
+- 模板默认格式：emoji+标题\n📅 {{date}}\n\n{{content}}`;
+
+  // Build messages array: system + history + current user message
+  const msgArr = [{ role: 'system', content: systemPrompt }];
+  if (Array.isArray(hist) && hist.length > 0) {
+    // Keep last 10 messages for context
+    const recent = hist.slice(-10);
+    for (const m of recent) {
+      if (m.role === 'user' || m.role === 'assistant') {
+        msgArr.push({ role: m.role, content: m.content });
+      }
+    }
+  }
+  msgArr.push({ role: 'user', content: message });
 
   try {
-    const resp = await fetch(settings.api_url, {
+    // Use agent if configured, otherwise use model API
+    const useAgent = settings.agent_enabled && settings.agent_url;
+    const apiUrl = useAgent ? settings.agent_url : settings.api_url;
+    const apiKey = useAgent ? settings.agent_key : settings.api_key;
+    const mdl = useAgent ? 'hermes' : settings.model;
+
+    const resp = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${settings.api_key}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: settings.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message },
-        ],
+        model: mdl,
+        messages: msgArr,
         max_tokens: 8192,
         temperature: 0.3,
       }),
@@ -192,14 +216,15 @@ ${templateList || '暂无'}
       return c.json({ error: 'AI 返回为空' }, 502);
     }
 
-    // Parse JSON from AI response
+    // Try to parse JSON from AI response; if not JSON, return as conversational reply
     let taskConfig: any;
     try {
       const jsonMatch = result.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('AI 未返回有效 JSON');
+      if (!jsonMatch) throw new Error('not json');
       taskConfig = JSON.parse(jsonMatch[0]);
     } catch (e: any) {
-      return c.json({ error: `AI 解析失败: ${e.message}`, raw: result }, 502);
+      // Return as conversational reply
+      return c.json({ ok: true, reply: result.slice(0, 2000) });
     }
 
     return c.json({ ok: true, config: taskConfig });

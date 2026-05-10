@@ -168,6 +168,24 @@
             </div>
             <button class="md-btn md-btn-filled" onclick="saveAISettings()">保存配置</button>
           </div>
+
+          <div class="md-card md-card-outlined mt-24" style="max-width:560px;">
+            <h3 class="md-title-medium mb-16">🤖 Agent 服务（可选）</h3>
+            <div class="md-body-small mb-16" style="color:var(--md-on-surface-variant)">配置后，「AI 创建推送任务」将优先调用 Agent 获得更智能的对话体验。</div>
+            <div class="md-field mb-16">
+              <label>Agent API 地址</label>
+              <input type="url" id="ai-agent-url" class="md-input" placeholder="https://your-hermes-server/v1/chat/completions">
+            </div>
+            <div class="md-field mb-16">
+              <label>Agent API 密钥</label>
+              <input type="password" id="ai-agent-key" class="md-input" placeholder="sk-xxx">
+            </div>
+            <div class="flex-center gap-8 mb-24">
+              <input type="checkbox" id="ai-agent-enabled">
+              <label for="ai-agent-enabled">启用 Agent 服务</label>
+            </div>
+            <button class="md-btn md-btn-filled" onclick="saveAISettings()">保存配置</button>
+          </div>
           <div class="md-card md-card-outlined mt-24" style="max-width:560px;">
             <h3 class="md-title-medium mb-16">AI 功能说明</h3>
             <div class="md-body-medium" style="color:var(--md-on-surface-variant);line-height:1.8">
