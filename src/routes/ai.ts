@@ -75,7 +75,7 @@ aiRoutes.post('/optimize', authMiddleware, async (c) => {
       body: JSON.stringify({
         model: settings.model,
         messages: [{ role: 'user', content: fullPrompt }],
-        max_tokens: 4096,
+        max_tokens: 2048,
         temperature: 0.7,
       }),
     });
@@ -91,7 +91,7 @@ aiRoutes.post('/optimize', authMiddleware, async (c) => {
       return c.json({ error: 'AI 返回为空' }, 502);
     }
 
-    return c.json({ ok: true, result: result.trim() });
+    return c.json({ ok: true, result: result.trim().slice(0, 3800) });
   } catch (err: any) {
     return c.json({ error: `AI 请求异常: ${err.message}` }, 502);
   }
