@@ -1064,11 +1064,8 @@
       let html = '';
       for (const m of result.messages) {
         if (m.role === 'user') {
-          html += `<div class="ai-msg user" style="margin-bottom:16px;text-align:right;">
-            <div style="background:var(--md-primary);color:var(--md-on-primary);padding:12px 16px;border-radius:12px;display:inline-block;max-width:80%;text-align:left;white-space:pre-wrap;">${esc(m.content)}</div>
-          </div>`;
+          html += `<div class="ai-msg user"><div class="bubble">${esc(m.content)}</div></div>`;
         } else {
-          // Try to format as task summary if JSON
           let content = m.content;
           try {
             const cfg = JSON.parse(content);
@@ -1081,9 +1078,7 @@
               content = summary;
             }
           } catch {}
-          html += `<div class="ai-msg assistant" style="margin-bottom:16px;">
-            <div style="background:var(--md-primary-container);color:var(--md-on-primary-container);padding:12px 16px;border-radius:12px;display:inline-block;max-width:100%;white-space:pre-wrap;">${content.startsWith('<b>') ? content : esc(content)}</div>
-          </div>`;
+          html += `<div class="ai-msg assistant"><div class="bubble">${content.startsWith('<b>') ? content : esc(content)}</div></div>`;
         }
       }
       chat.innerHTML = html + `<div id="ai-create-welcome" style="text-align:center;color:var(--md-on-surface-variant);font-size:14px;">💡 以上是历史对话，继续输入新需求</div>`;
@@ -1096,13 +1091,13 @@
     if (!confirm('确定清空对话历史？')) return;
     await API.clearAIConversations();
     const chat = document.getElementById('ai-create-chat');
-    if (chat) chat.innerHTML = `<div id="ai-create-welcome" style="text-align:center;color:var(--md-on-surface-variant);font-size:14px;padding:20px;">
+    if (chat) chat.innerHTML = `<div class="ai-msg assistant"><div class="bubble">
       💬 对话历史已清空<br><br>
       <b>试试这些：</b><br>
       • 「创建一个微博热搜推送，每小时推一次」<br>
       • 「每天早上8点推送服务器状态」<br>
       • 「把头条新闻推到测试群」
-    </div>`;
+    </div></div>`;
     showSnackbar('✅ 对话历史已清空');
   };
 
@@ -1113,17 +1108,11 @@
     input.value = '';
 
     const chat = document.getElementById('ai-create-chat');
-    // Add user message
-    chat.innerHTML += `<div class="ai-msg user" style="margin-bottom:16px;text-align:right;">
-      <div style="background:var(--md-primary);color:var(--md-on-primary);padding:12px 16px;border-radius:12px;display:inline-block;max-width:80%;text-align:left;white-space:pre-wrap;">${esc(msg)}</div>
-    </div>`;
+    chat.innerHTML += `<div class="ai-msg user"><div class="bubble">${esc(msg)}</div></div>`;
     chat.scrollTop = chat.scrollHeight;
 
-    // Add thinking indicator
-    chat.innerHTML += `<div class="ai-msg assistant" id="ai-create-thinking" style="margin-bottom:16px;">
-      <div style="background:var(--md-primary-container);color:var(--md-on-primary-container);padding:12px 16px;border-radius:12px;display:inline-block;">
-        <span class="loading-dots">🤔 正在分析需求</span>
-      </div>
+    chat.innerHTML += `<div class="ai-msg assistant" id="ai-create-thinking">
+      <div class="bubble"><div class="ai-typing"><span></span><span></span><span></span></div></div>
     </div>`;
     chat.scrollTop = chat.scrollHeight;
 
@@ -1147,27 +1136,19 @@
       if (cfg.schedule_type === 'interval') summary += `频率：每 ${cfg.interval_minutes || 60} 分钟\n`;
       else if (cfg.cron_expr) summary += `Cron：${cfg.cron_expr}\n`;
 
-      chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
-        <div style="background:var(--md-primary-container);color:var(--md-on-primary-container);padding:12px 16px;border-radius:12px;display:inline-block;max-width:100%;white-space:pre-wrap;">${summary}</div>
-      </div>`;
+      chat.innerHTML += `<div class="ai-msg assistant"><div class="bubble" style="white-space:pre-wrap;">${summary}</div></div>`;
 
-      chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
+      chat.innerHTML += `<div class="ai-msg assistant"><div class="bubble" style="background:transparent;padding:4px 0;">
         <div style="display:flex;gap:8px;">
           <button class="md-btn md-btn-filled md-btn-sm" onclick='confirmAiTask(${JSON.stringify(cfg).replace(/'/g, "&#39;")})'>✅ 确认创建</button>
           <button class="md-btn md-btn-outlined md-btn-sm" onclick="document.getElementById('ai-create-input').focus()">✏️ 重新描述</button>
         </div>
-      </div>`;
+      </div></div>`;
     } else if (result.ok && result.reply) {
       // AI returned a conversational reply instead of task config
-      chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
-        <div style="background:var(--md-secondary-container);color:var(--md-on-secondary-container);padding:12px 16px;border-radius:12px;display:inline-block;max-width:100%;white-space:pre-wrap;">${esc(result.reply)}</div>
-      </div>`;
+      chat.innerHTML += `<div class="ai-msg assistant"><div class="bubble" style="white-space:pre-wrap;">${esc(result.reply)}</div></div>`;
     } else {
-      chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
-        <div style="background:var(--md-error-container);color:var(--md-on-error-container);padding:12px 16px;border-radius:12px;display:inline-block;">
-          ❌ ${esc(result.error || 'AI 解析失败，请重新描述')}
-        </div>
-      </div>`;
+      chat.innerHTML += `<div class="ai-msg assistant"><div class="bubble" style="background:var(--md-error-container);color:var(--md-on-error-container);">❌ ${esc(result.error || 'AI 解析失败，请重新描述')}</div></div>`;
     }
 
     chat.scrollTop = chat.scrollHeight;
@@ -1180,16 +1161,66 @@
     if (result.ok) {
       showSnackbar('✅ ' + (result.message || '任务已创建'));
       const chat = document.getElementById('ai-create-chat');
-      chat.innerHTML += `<div class="ai-msg assistant" style="margin-bottom:16px;">
-        <div style="background:var(--md-primary-container);color:var(--md-on-primary-container);padding:12px 16px;border-radius:12px;display:inline-block;">
-          ✅ 任务创建成功！ID: ${result.task_id}<br>可在「⏰ 定时推送」页面查看和管理。
-        </div>
-      </div>`;
+      chat.innerHTML += `<div class="ai-msg assistant"><div class="bubble">✅ 任务创建成功！ID: ${result.task_id}<br>可在「定时推送」页面查看和管理。</div></div>`;
       chat.scrollTop = chat.scrollHeight;
     } else {
       showSnackbar('❌ ' + (result.error || '创建失败'));
     }
   };
+
+  // ===== Sidebar Toggle (Mobile) =====
+  window.toggleSidebar = function() {
+    const sidebar = document.querySelector('.sidebar');
+    sidebar.classList.toggle('open');
+  };
+
+  // Close sidebar when clicking a nav item on mobile
+  document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 768) toggleSidebar();
+    });
+  });
+
+  // ===== Theme System =====
+  const UAMME_THEMES = ['light', 'dark', 'animal-crossing'];
+
+  function getNextTheme(current) {
+    const index = UAMME_THEMES.indexOf(current);
+    return UAMME_THEMES[(index + 1) % UAMME_THEMES.length] || 'light';
+  }
+
+  function getThemeIcon(theme) {
+    if (theme === 'dark') return 'dark_mode';
+    if (theme === 'animal-crossing') return 'park';
+    return 'light_mode';
+  }
+
+  function applyTheme(theme) {
+    const safeTheme = UAMME_THEMES.includes(theme) ? theme : 'light';
+    document.documentElement.setAttribute('data-theme', safeTheme);
+    localStorage.setItem('uamme_theme', safeTheme);
+
+    const icon = document.getElementById('theme-icon');
+    if (icon) icon.textContent = getThemeIcon(safeTheme);
+
+    const select = document.getElementById('theme-select');
+    if (select) select.value = safeTheme;
+  }
+
+  window.setTheme = function(theme) {
+    applyTheme(theme);
+  };
+
+  window.toggleTheme = function() {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    applyTheme(getNextTheme(current));
+  };
+
+  // Init theme
+  (function() {
+    const saved = localStorage.getItem('uamme_theme') || 'light';
+    applyTheme(saved);
+  })();
 
   // ===== Init =====
   loadUser().then(() => {

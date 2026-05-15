@@ -7,10 +7,23 @@
   <title>登录 - Uamme</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
+  <script>
+    (function() {
+      const theme = localStorage.getItem('uamme_theme') || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
 </head>
 <body>
   <div class="login-page">
     <div class="login-card">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <select id="theme-select-login" class="theme-select" onchange="setLoginTheme(this.value)">
+          <option value="light">默认</option>
+          <option value="dark">深色</option>
+          <option value="animal-crossing">动森</option>
+        </select>
+      </div>
       <h1>📡 Uamme</h1>
       <p class="subtitle">登录管理后台</p>
 
@@ -42,6 +55,19 @@
     if (localStorage.getItem('uamme_token')) {
       window.location.href = '/app.html';
     }
+
+    function setLoginTheme(theme) {
+      const safeTheme = ['light', 'dark', 'animal-crossing'].includes(theme) ? theme : 'light';
+      document.documentElement.setAttribute('data-theme', safeTheme);
+      localStorage.setItem('uamme_theme', safeTheme);
+      const select = document.getElementById('theme-select-login');
+      if (select) select.value = safeTheme;
+    }
+
+    (function initLoginTheme() {
+      const saved = localStorage.getItem('uamme_theme') || 'light';
+      setLoginTheme(saved);
+    })();
 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();

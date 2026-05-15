@@ -6,6 +6,7 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>控制台 - Uamme</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -18,51 +19,70 @@
       </div>
       <nav class="sidebar-nav">
         <a class="sidebar-item active" data-page="dashboard">
-          <span class="icon">📊</span> 控制台
+          <span class="material-symbols-outlined">dashboard</span> 控制台
         </a>
         <a class="sidebar-item" data-page="webhooks">
-          <span class="icon">🔗</span> Webhook 配置
+          <span class="material-symbols-outlined">webhook</span> Webhook 配置
         </a>
         <a class="sidebar-item" data-page="templates">
-          <span class="icon">📝</span> 推送模板
+          <span class="material-symbols-outlined">code</span> 推送模板
         </a>
         <a class="sidebar-item" data-page="sources">
-          <span class="icon">📰</span> 内容源管理
+          <span class="material-symbols-outlined">rss_feed</span> 内容源管理
         </a>
         <a class="sidebar-item" data-page="custom">
-          <span class="icon">✏️</span> 自定义内容
+          <span class="material-symbols-outlined">edit_note</span> 自定义内容
         </a>
         <a class="sidebar-item" data-page="push">
-          <span class="icon">🚀</span> 推送记录
+          <span class="material-symbols-outlined">send</span> 推送记录
         </a>
         <a class="sidebar-item" data-page="schedule">
-          <span class="icon">⏰</span> 定时推送
+          <span class="material-symbols-outlined">schedule</span> 定时推送
         </a>
         <a class="sidebar-item" data-page="settings">
-          <span class="icon">🔑</span> 账户设置
+          <span class="material-symbols-outlined">person</span> 账户设置
         </a>
         <a class="sidebar-item" data-page="users" id="nav-users" style="display:none;">
-          <span class="icon">👥</span> 用户管理
+          <span class="material-symbols-outlined">group</span> 用户管理
         </a>
         <a class="sidebar-item" data-page="ai-settings" id="nav-ai" style="display:none;">
-          <span class="icon">⚙️</span> 系统配置
+          <span class="material-symbols-outlined">tune</span> 系统配置
         </a>
         <a class="sidebar-item" data-page="ai-create" id="nav-ai-create">
-          <span class="icon">✨</span> AI 创建任务
+          <span class="material-symbols-outlined">auto_awesome</span> AI 创建任务
         </a>
       </nav>
       <div class="sidebar-footer">
+        <div class="theme-control-row">
+          <span class="theme-control-label">主题</span>
+          <div class="theme-control-actions">
+            <button class="md-btn-icon" onclick="toggleTheme()" style="width:32px;height:32px;" title="切换主题">
+              <span class="material-symbols-outlined" id="theme-icon" style="font-size:18px;">palette</span>
+            </button>
+            <select id="theme-select" class="theme-select" onchange="setTheme(this.value)">
+              <option value="light">默认</option>
+              <option value="dark">深色</option>
+              <option value="animal-crossing">动森</option>
+            </select>
+          </div>
+        </div>
         <div class="flex-between">
           <span id="user-display" style="font-size:14px;color:var(--md-on-surface-variant);">--</span>
           <button class="md-btn md-btn-text md-btn-sm" onclick="handleLogout()">退出</button>
         </div>
       </div>
     </aside>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
     <!-- Main -->
     <main class="main-content">
       <div class="topbar">
-        <h1 class="topbar-title" id="page-title">控制台</h1>
+        <div class="topbar-left">
+          <button class="md-btn-icon sidebar-toggle" onclick="toggleSidebar()" style="display:none;">
+            <span class="material-symbols-outlined">menu</span>
+          </button>
+          <h1 class="topbar-title" id="page-title">控制台</h1>
+        </div>
         <div id="topbar-actions"></div>
       </div>
 
@@ -244,11 +264,11 @@
             <button class="md-btn md-btn-outlined md-btn-sm" onclick="clearAIConversations()" style="font-size:12px;">🗑️ 清空历史</button>
           </div>
           <div class="md-card md-card-outlined" style="max-width:720px;">
-            <div id="ai-create-chat" style="min-height:400px;max-height:600px;overflow-y:auto;padding:16px;">
-              <div class="ai-msg assistant" style="margin-bottom:16px;">
-                <div style="background:var(--md-primary-container);color:var(--md-on-primary-container);padding:12px 16px;border-radius:12px;display:inline-block;max-width:100%;">
+            <div id="ai-create-chat" style="min-height:400px;max-height:600px;overflow-y:auto;padding:24px;">
+              <div class="ai-msg assistant">
+                <div class="bubble">
                   👋 你好！我是推送任务创建助手。告诉我你想创建什么样的推送任务，例如：
-                  <ul style="margin:8px 0 0 16px;padding:0;">
+                  <ul>
                     <li>每隔 2 小时爬取 https://example.com 的最新文章推送到测试群</li>
                     <li>每天早上 9 点推送济南天气到运维群</li>
                     <li>每 30 分钟检查服务器状态并推送到告警群</li>
@@ -257,10 +277,12 @@
                 </div>
               </div>
             </div>
-            <div style="padding:16px;border-top:1px solid var(--md-outline-variant);background:var(--md-surface);border-radius:0 0 12px 12px;">
-              <div style="display:flex;gap:12px;align-items:flex-end;background:var(--md-surface-container);border:2px solid var(--md-outline);border-radius:16px;padding:12px 16px;transition:border-color 0.2s;" id="ai-create-input-wrap">
-                <textarea id="ai-create-input" rows="3" class="md-input" placeholder="描述你想要的推送任务，例如：每隔2小时爬取某网站新闻推送到运维群..." style="flex:1;margin:0;border:none;background:transparent;resize:none;min-height:60px;line-height:1.5;outline:none;" onfocus="document.getElementById('ai-create-input-wrap').style.borderColor='var(--md-primary)';document.getElementById('ai-create-input-wrap').style.boxShadow='0 0 0 1px var(--md-primary)'" onblur="document.getElementById('ai-create-input-wrap').style.borderColor='var(--md-outline)';document.getElementById('ai-create-input-wrap').style.boxShadow='none'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAiCreateMsg()}"></textarea>
-                <button class="md-btn md-btn-filled" onclick="sendAiCreateMsg()" id="ai-create-send" style="min-width:56px;height:40px;border-radius:12px;">发送</button>
+            <div style="padding:16px 24px 20px;border-top:1px solid var(--md-outline-variant);background:var(--md-surface);border-radius:0 0 12px 12px;">
+              <div style="display:flex;gap:12px;align-items:flex-end;background:var(--md-surface-container);border:2px solid var(--md-outline);border-radius:20px;padding:12px 16px 12px 20px;transition:border-color 0.2s,box-shadow 0.2s;" id="ai-create-input-wrap">
+                <textarea id="ai-create-input" rows="1" class="md-input" placeholder="描述你想要的推送任务..." style="flex:1;margin:0;border:none;background:transparent;resize:none;min-height:44px;max-height:120px;line-height:1.5;outline:none;font-size:14px;" onfocus="document.getElementById('ai-create-input-wrap').style.borderColor='var(--md-primary)';document.getElementById('ai-create-input-wrap').style.boxShadow='0 0 0 1px var(--md-primary)'" onblur="document.getElementById('ai-create-input-wrap').style.borderColor='var(--md-outline)';document.getElementById('ai-create-input-wrap').style.boxShadow='none'" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAiCreateMsg()}"></textarea>
+                <button class="md-btn md-btn-filled" onclick="sendAiCreateMsg()" id="ai-create-send" style="min-width:44px;height:44px;border-radius:22px;padding:0;">
+                  <span class="material-symbols-outlined" style="font-size:20px;">send</span>
+                </button>
               </div>
               <div style="margin-top:8px;font-size:12px;color:var(--md-on-surface-variant);text-align:center;">Enter 发送，Shift+Enter 换行</div>
             </div>

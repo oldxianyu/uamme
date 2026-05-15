@@ -6,6 +6,13 @@ compatibility_flags = ["nodejs_compat"]
 # Enable workers.dev
 workers_dev = true
 
+# Static assets
+[assets]
+directory = "public"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+not_found_handling = "single-page-application"
+
 # Cron Triggers: every minute
 [triggers]
 crons = ["* * * * *"]

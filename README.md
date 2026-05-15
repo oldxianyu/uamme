@@ -1,6 +1,6 @@
 # 优安米 (UAMME)
 
-企业微信 Webhook 推送机器人配置平台，支持多用户、模板管理、内容源接入、定时推送、AI智能优化、自然语言创建任务。
+企业微信 Webhook 推送机器人配置平台，支持多用户、模板管理、内容源接入、定时推送、AI 智能优化、自然语言创建任务，以及可切换的前端主题配置。
 
 🌐 **在线体验：** [uamme.com](https://uamme.com)
 
@@ -68,6 +68,12 @@
 - **内容隔离**：每个用户只能看到自己的数据
 - 账户设置：登录后可自行修改密码
 
+### 🎨 主题系统
+- 支持 `light`、`dark`、`animal-crossing` 三套主题
+- 首页、登录页、后台控制台统一支持主题切换
+- 主题选择保存在浏览器本地，刷新后自动恢复
+- `animal-crossing` 为可直接上线使用的动森风格主题
+
 ## 技术栈
 
 | 层级 | 技术 |
@@ -75,7 +81,7 @@
 | 运行时 | Cloudflare Workers |
 | 框架 | Hono |
 | 数据库 | Cloudflare D1 (SQLite) |
-| 前端 | 原生 HTML/CSS/JS + Material Design 3 |
+| 前端 | 原生 HTML/CSS/JS + Material Design 3 + 可切换主题变量系统 |
 | 认证 | PBKDF2-SHA256 + Token Session |
 | AI | OpenAI 兼容接口 + Hermes Agent（可选） |
 | 定时 | Cloudflare Cron Triggers（每分钟轮询） |
@@ -87,40 +93,42 @@
 ```
 uamme/
 ├── src/
-│   ├── index.ts              # Worker 入口（含 Cron Trigger 调度器）
+│   ├── index.ts               # Worker 入口（含 Cron Trigger 调度器）
 │   ├── db/index.ts            # D1 数据库 helper
-│   ├── middleware/auth.ts      # 认证中间件
+│   ├── middleware/auth.ts     # 认证中间件
 │   └── routes/
 │       ├── auth.ts            # 登录/注册/改密/用户管理
 │       ├── webhook.ts         # Webhook CRUD
 │       ├── template.ts        # 模板 CRUD
 │       ├── content.ts         # 内容源 CRUD
-│       ├── content-fetch.ts   # 内容源抓取（API调用/浏览器渲染/服务器监控/早报）
+│       ├── content-fetch.ts   # 内容源抓取（API 调用/浏览器渲染/服务器监控/早报）
 │       ├── custom.ts          # 自定义内容 CRUD
 │       ├── push.ts            # 推送执行
 │       ├── dashboard.ts       # 仪表盘数据
 │       ├── ai.ts              # AI 优化/生成/自然语言创建任务
-      ├── content-fetch.ts   # 内容源抓取（API调用/浏览器渲染/服务器监控/早报）
 │       ├── schedule.ts        # 定时推送任务管理
 │       └── api.ts             # API 汇总路由
 ├── public/
-│   ├── index.html             # 首页
-│   ├── login.html             # 登录页
-│   ├── app.html               # 主应用页
-│   ├── css/style.css          # MD3 样式
+│   ├── index.html             # 首页（支持主题切换）
+│   ├── login.html             # 登录页（支持主题切换）
+│   ├── app.html               # 主应用页（支持主题切换）
+│   ├── css/style.css          # MD3 样式与主题变量
 │   └── js/
 │       ├── api.js             # API 客户端
-│       └── app.js             # 前端逻辑
+│       └── app.js             # 前端逻辑与主题切换
 ├── migrations/
 │   ├── 0001_init.sql          # 建表
 │   ├── 0002_seed.sql          # 默认管理员
 │   ├── 0003_ai_settings.sql   # AI 设置表
 │   ├── 0004_scheduled_tasks.sql # 定时任务表
-    └── 0005_agent_settings.sql  # Agent 配置字段
-│   └── 0005_agent_settings.sql  # Agent 配置字段
+│   ├── 0005_agent_settings.sql # Agent 配置字段
+│   ├── 0006_browserless.sql   # Browserless 配置字段
+│   └── 0007_ai_conversations.sql # AI 对话记录
 ├── scripts/
 │   ├── build-embedded.js      # 静态资源嵌入构建
-│   └── embed-and-deploy.sh    # 构建+部署脚本
+│   ├── embed_and_deploy.py    # 构建+部署脚本
+│   ├── ref_daily_briefing.py  # 每日早报参考脚本
+│   └── ref_server_report.py   # 服务器监控参考脚本
 ├── .github/workflows/
 │   └── deploy.yml             # GitHub Actions 自动部署
 └── wrangler.toml              # Cloudflare Workers 配置
@@ -139,11 +147,12 @@ npx wrangler d1 execute uamme-db --local --file=migrations/0001_init.sql
 npx wrangler d1 execute uamme-db --local --file=migrations/0002_seed.sql
 npx wrangler d1 execute uamme-db --local --file=migrations/0003_ai_settings.sql
 npx wrangler d1 execute uamme-db --local --file=migrations/0004_scheduled_tasks.sql
-    └── 0005_agent_settings.sql  # Agent 配置字段
 npx wrangler d1 execute uamme-db --local --file=migrations/0005_agent_settings.sql
+npx wrangler d1 execute uamme-db --local --file=migrations/0006_browserless.sql
+npx wrangler d1 execute uamme-db --local --file=migrations/0007_ai_conversations.sql
 
 # 启动开发服务器
-npx wrangler dev --port 3000
+npm run dev
 ```
 
 访问 http://localhost:3000，使用默认账号登录：
@@ -154,7 +163,7 @@ npx wrangler dev --port 3000
 
 ```bash
 # 一键构建+部署（需要 Cloudflare API 凭据）
-./scripts/embed-and-deploy.sh
+python3 ./scripts/embed_and_deploy.py
 ```
 
 或通过 GitHub Actions 自动部署：push 到 `master` 分支即可触发。
@@ -190,6 +199,21 @@ curl -X PUT "https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/workers/
 - **Agent URL**：Hermes API 地址（如 `https://hermes.example.com/v1/chat/completions`）
 - **Agent Key**：API 密钥
 - **启用 Agent**：开启后 AI 优化和任务创建优先使用 Hermes Agent
+
+## 前端主题说明
+
+当前内置三套主题：
+
+- `light`：默认浅色主题
+- `dark`：深色主题
+- `animal-crossing`：动森风格主题
+
+主题切换入口：
+- 首页右上角
+- 登录页卡片右上角
+- 后台侧边栏底部
+
+主题状态保存在浏览器 `localStorage` 的 `uamme_theme` 字段中。
 
 ## 安全特性
 
