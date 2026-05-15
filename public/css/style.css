@@ -705,6 +705,21 @@ body {
 /* ===== Theme specific polish ===== */
 [data-theme="dark"] .sidebar-header h2 { color: var(--md-primary); }
 [data-theme="dark"] .material-symbols-outlined { color: inherit; }
+[data-theme="dark"] .island-board {
+  background: linear-gradient(180deg, rgba(43, 41, 48, 0.92), rgba(28, 27, 31, 0.96));
+  border-color: rgba(147, 143, 153, 0.22);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.26);
+}
+[data-theme="dark"] .island-board h2 {
+  color: var(--md-on-surface);
+}
+[data-theme="dark"] .island-board p {
+  color: var(--md-on-surface-variant);
+}
+[data-theme="dark"] .island-pill {
+  background: rgba(208, 188, 255, 0.12);
+  color: var(--md-primary);
+}
 [data-theme="animal-crossing"] .md-title-large,
 [data-theme="animal-crossing"] .md-title-medium,
 [data-theme="animal-crossing"] .md-title-small {
