@@ -14,6 +14,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-header">
+        <div class="sidebar-leaf-badge">🌿 岛务中心</div>
         <h2>📡 Uamme</h2>
         <p>Webhook 推送配置</p>
       </div>
@@ -89,6 +90,18 @@
       <div class="page-content">
         <!-- Dashboard -->
         <div id="page-dashboard" class="page">
+          <section class="island-board mb-24">
+            <div>
+              <div class="eyebrow">今日岛务看板</div>
+              <h2>欢迎回来，来看看今天的小岛广播</h2>
+              <p>这里集中查看推送设施、内容储备、成功率与最近异常，像巡查岛上公告板一样一眼掌握全局。</p>
+            </div>
+            <div class="island-board-tags">
+              <span class="island-pill">🌿 岛民常用</span>
+              <span class="island-pill">📮 推送公告</span>
+              <span class="island-pill">⏰ 定时广播</span>
+            </div>
+          </section>
           <div class="stats-grid" id="stats-grid"></div>
           <div class="md-card md-card-outlined mb-24">
             <h3 class="md-title-medium mb-16">最近推送</h3>
@@ -259,8 +272,9 @@
 
         <!-- AI Create Task -->
         <div id="page-ai-create" class="page hidden">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
             <h2 class="md-title-large">✨ AI 创建推送任务</h2>
+            <span class="island-pill">🦝 岛务助手</span>
             <button class="md-btn md-btn-outlined md-btn-sm" onclick="clearAIConversations()" style="font-size:12px;">🗑️ 清空历史</button>
           </div>
           <div class="md-card md-card-outlined" style="max-width:720px;">
